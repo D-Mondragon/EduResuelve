@@ -1,0 +1,43 @@
+# Dependencias
+node_modules/
+
+# Variables de entorno
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Archivos generados
+dist/
+build/
+coverage/
+
+# Archivos temporales
+.tmp/
+temp/
+.cache/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Archivos de PostgreSQL / backups locales
+*.sql.backup
+*.dump
+
+# Credenciales y secretos
+*.pem
+*.key
