@@ -41,3 +41,9 @@ Thumbs.db
 # Credenciales y secretos
 *.pem
 *.key
+# Base local de desarrollo (PGlite)
+.local-db/
+
+# Playwright
+test-results/
+playwright-report/
