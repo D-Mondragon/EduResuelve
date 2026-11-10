@@ -1,513 +1,355 @@
+import {
+  CircleSlash,
+  Eye,
+  Hammer,
+  History,
+  RefreshCcw,
+  RotateCcw,
+  ShieldCheck,
+  UserCheck,
+  type LucideIcon,
+} from 'lucide-react'
 import { useState, type FormEvent } from 'react'
-import { Link, useParams } from 'react-router'
-import { mockUsers } from '../data/mockUsers'
-import { incidentTransitions, useIncidentSession } from '../store/incidentSession'
-import type { IncidentPriority, IncidentStatus } from '../types/incident'
-import { incidentResponsibleRoles } from '../types/user'
+import { useNavigate, useSearchParams } from 'react-router'
+import { IncidentHeader } from '../components/incident/IncidentHeader'
+import { Timeline } from '../components/incident/Timeline'
+import { useToast } from '../components/toast/toastContext'
+import { StatusBadge } from '../components/ui/Badge'
+import { Button } from '../components/ui/Button'
+import { Alert, Card, CardHeader, ErrorState, LoadingState } from '../components/ui/Feedback'
+import { Field, Select, Textarea } from '../components/ui/Field'
+import { Modal } from '../components/ui/Modal'
+import { useAsync } from '../hooks/useAsync'
+import { useIncident } from '../hooks/useIncident'
+import { api, ApiError } from '../lib/api'
+import { can } from '../lib/permissions'
+import { cn } from '../lib/ui'
+import type { IncidentAction, IncidentStatus } from '../types/incident'
+import type { UserRef } from '../types/user'
 
-interface FollowUpFormErrors {
-  observation?: string
-  reason?: string
-  nextStatus?: string
-  responsible?: string
+type FollowUpAction = Extract<IncidentAction, 'review' | 'assign' | 'start' | 'discard' | 'reopen' | 'reassign'>
+
+const actionInfo: Record<
+  FollowUpAction,
+  { label: string; description: string; icon: LucideIcon; to?: IncidentStatus; destructive?: boolean }
+> = {
+  review: { label: 'Iniciar revisión', description: 'Analiza la información antes de asignar o descartar.', icon: Eye, to: 'En revisión' },
+  assign: { label: 'Asignar responsable', description: 'Elige a la persona que atenderá la incidencia.', icon: UserCheck, to: 'Asignado' },
+  start: { label: 'Iniciar atención', description: 'Indica que comenzaste a atender la incidencia.', icon: Hammer, to: 'En atención' },
+  discard: { label: 'Descartar', description: 'No procede atenderla. Requiere motivo (RN-007).', icon: CircleSlash, to: 'Descartado', destructive: true },
+  reopen: { label: 'Reabrir', description: 'Vuelve a revisión. Requiere motivo (RN-008).', icon: RotateCcw, to: 'En revisión', destructive: true },
+  reassign: { label: 'Reasignar', description: 'Cambia el responsable desactivado. Requiere motivo.', icon: RefreshCcw },
 }
 
-const assignableUsers = mockUsers.filter(
-  (user) =>
-    user.status === 'Activo' && incidentResponsibleRoles.includes(user.role),
-)
+const loadAssignable = () => api.assignableUsers()
 
-const statusStyles: Record<IncidentStatus, string> = {
-  Nuevo: 'bg-sky-50 text-sky-800',
-  'En revisión': 'bg-blue-50 text-blue-800',
-  Asignado: 'bg-indigo-50 text-indigo-800',
-  'En atención': 'bg-amber-50 text-amber-800',
-  Resuelto: 'bg-emerald-50 text-emerald-800',
-  Cerrado: 'bg-slate-100 text-slate-700',
-  Descartado: 'bg-slate-100 text-slate-600',
-}
-
-const priorityStyles: Record<IncidentPriority, string> = {
-  Baja: 'bg-slate-100 text-slate-700',
-  Media: 'bg-blue-50 text-blue-800',
-  Alta: 'bg-orange-50 text-orange-800',
-  Crítica: 'bg-rose-50 text-rose-800',
-}
-
-const dateTimeFormatter = new Intl.DateTimeFormat('es', {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-  timeZone: 'UTC',
-})
-
-const fieldClassName =
-  'mt-2 block w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/20 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500'
-
-function DetailItem({ label, value }: { label: string; value: string }) {
+function ResponsibleField({
+  value,
+  onChange,
+  error,
+  label,
+  excludeId,
+}: {
+  value: string
+  onChange: (value: string) => void
+  error?: string
+  label: string
+  excludeId?: string
+}) {
+  const users = useAsync(loadAssignable)
+  const options = (users.data ?? []).filter((user: UserRef) => user.id !== excludeId)
   return (
-    <div>
-      <dt className="text-xs font-medium text-slate-500">{label}</dt>
-      <dd className="mt-1 text-sm leading-6 text-slate-800">{value}</dd>
-    </div>
+    <Field
+      error={error || users.error?.message}
+      hint="Solo usuarios activos con rol Docente, Orientador o Administrador (RN-004)."
+      id="responsible"
+      label={label}
+      required
+    >
+      <Select disabled={users.loading} onChange={(e) => onChange(e.target.value)} value={value}>
+        <option value="">{users.loading ? 'Cargando usuarios…' : 'Selecciona un responsable'}</option>
+        {options.map((user) => (
+          <option key={user.id} value={user.id}>
+            {user.fullName} — {user.role}
+          </option>
+        ))}
+      </Select>
+    </Field>
   )
 }
+
+const order: FollowUpAction[] = ['reassign', 'review', 'assign', 'start', 'discard', 'reopen']
 
 function IncidentFollowUpPage() {
-  const { id } = useParams()
-  const { incidents, followUps, recordFollowUp } = useIncidentSession()
+  const { data: incident, error, loading, reload } = useIncident()
+  const [params] = useSearchParams()
+  const navigate = useNavigate()
+  const { notify } = useToast()
+  const requested = params.get('accion') as FollowUpAction | null
+  const [selected, setSelected] = useState<FollowUpAction | null>(null)
   const [observation, setObservation] = useState('')
   const [reason, setReason] = useState('')
-  const [nextStatus, setNextStatus] = useState<IncidentStatus | ''>('')
-  const [responsibleUserId, setResponsibleUserId] = useState('')
-  const [errors, setErrors] = useState<FollowUpFormErrors>({})
-  const [confirmation, setConfirmation] = useState('')
+  const [responsibleId, setResponsibleId] = useState('')
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [formError, setFormError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [confirming, setConfirming] = useState(false)
 
-  const incident = incidents.find((item) => item.id === id)
+  const available = incident ? order.filter((action) => can(incident, action)) : []
 
-  if (!incident) {
-    return (
-      <section className="mx-auto flex min-h-[50vh] max-w-xl flex-col items-start justify-center">
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
-          Incidencia no encontrada
-        </h1>
-        <p className="mt-2 text-sm leading-6 text-slate-600">
-          No encontramos una incidencia con el código solicitado.
-        </p>
-        <Link
-          className="mt-6 inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-500"
-          to="/incidencias"
-        >
-          Volver a incidencias
-        </Link>
-      </section>
-    )
+  if (loading && !incident) return <LoadingState />
+  if (error || !incident) return <ErrorState error={error ?? new Error('Incidencia no encontrada.')} onRetry={() => reload()} />
+
+  const action: FollowUpAction | null =
+    selected && available.includes(selected)
+      ? selected
+      : requested && available.includes(requested)
+        ? requested
+        : available.length === 1
+          ? available[0]
+          : null
+
+  const needsResponsible = action === 'assign' || action === 'reassign'
+  const needsReason = action === 'discard' || action === 'reopen' || action === 'reassign'
+  const needsObservation = action === 'review' || action === 'assign' || action === 'start'
+
+  function choose(next: FollowUpAction) {
+    setSelected(next)
+    setErrors({})
+    setFormError('')
   }
 
-  const incidentId = incident.id
-  const currentIncidentStatus = incident.status
-  const transitions = incidentTransitions[currentIncidentStatus]
-  const isDiscarding =
-    currentIncidentStatus === 'En revisión' && nextStatus === 'Descartado'
-  const isReopening =
-    currentIncidentStatus === 'Cerrado' && nextStatus === 'En revisión'
-  const requiresReason = isDiscarding || isReopening
-  const reasonLabel = isDiscarding
-    ? 'Motivo del descarte'
-    : 'Motivo de reapertura'
-  const reasonErrorMessage = isDiscarding
-    ? 'Debe indicar el motivo del descarte.'
-    : 'Debe indicar el motivo de la reapertura.'
-  const selectedResponsible = assignableUsers.find(
-    (user) => user.id === responsibleUserId,
-  )
-  const incidentFollowUps = followUps.filter(
-    (followUp) => followUp.incidentId === incidentId,
-  )
+  function validate() {
+    const nextErrors: Record<string, string> = {}
+    if (needsResponsible && !responsibleId) nextErrors.responsible = 'Selecciona un responsable.'
+    if (needsReason && !reason.trim()) {
+      nextErrors.reason =
+        action === 'discard'
+          ? 'Debe indicar el motivo del descarte.'
+          : action === 'reopen'
+            ? 'Debe indicar el motivo de la reapertura.'
+            : 'Debe indicar el motivo de la reasignación.'
+    }
+    if (needsObservation && !observation.trim()) nextErrors.observation = 'Ingresa una observación para el seguimiento.'
+    setErrors(nextErrors)
+    return Object.keys(nextErrors).length === 0
+  }
+
+  async function execute() {
+    if (!action || !incident) return
+    setConfirming(false)
+    setSaving(true)
+    setFormError('')
+    try {
+      if (action === 'reassign') {
+        await api.reassign(incident.code, responsibleId, reason)
+      } else {
+        await api.transition(incident.code, action, { observation, reason, responsibleId: needsResponsible ? responsibleId : null })
+      }
+      notify(
+        action === 'reassign'
+          ? 'Responsable reasignado correctamente.'
+          : `La incidencia pasó a "${actionInfo[action].to}".`,
+      )
+      navigate(`/incidencias/${encodeURIComponent(incident.code)}`)
+    } catch (caught) {
+      setFormError(caught instanceof ApiError ? caught.message : 'No se pudo registrar el seguimiento.')
+      reload(true)
+    } finally {
+      setSaving(false)
+    }
+  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-
-    const nextErrors: FollowUpFormErrors = {}
-    if (!observation.trim()) {
-      nextErrors.observation = 'Escribe una observación para el seguimiento.'
-    }
-    if (requiresReason && !reason.trim()) {
-      nextErrors.reason = reasonErrorMessage
-    }
-    if (!nextStatus) {
-      nextErrors.nextStatus = 'Selecciona el próximo estado.'
-    } else if (!transitions.includes(nextStatus)) {
-      nextErrors.nextStatus = 'La transición seleccionada no está permitida.'
-    }
-    if (
-      currentIncidentStatus === 'En revisión' &&
-      nextStatus === 'Asignado' &&
-      !selectedResponsible
-    ) {
-      nextErrors.responsible =
-        'Debe seleccionar un responsable para asignar la incidencia.'
-    }
-
-    setErrors(nextErrors)
-    setConfirmation('')
-    if (Object.keys(nextErrors).length > 0 || !nextStatus) return
-
-    if (
-      !recordFollowUp(
-        incidentId,
-        nextStatus,
-        observation,
-        nextStatus === 'Asignado' ? responsibleUserId : undefined,
-        requiresReason ? reason : undefined,
-      )
-    ) {
-      if (requiresReason) {
-        setErrors({ reason: reasonErrorMessage })
-      } else if (nextStatus === 'Asignado') {
-        setErrors({
-          responsible:
-            'Debe seleccionar un responsable para asignar la incidencia.',
-        })
-      } else {
-        setErrors({ nextStatus: 'La transición seleccionada no está permitida.' })
-      }
-      return
-    }
-
-    setObservation('')
-    setReason('')
-    setNextStatus('')
-    setResponsibleUserId('')
-    setErrors({})
-    setConfirmation('El seguimiento se registró temporalmente en esta pantalla.')
+    if (!action || !validate()) return
+    if (actionInfo[action].destructive) setConfirming(true)
+    else void execute()
   }
 
   return (
-    <section className="mx-auto w-full max-w-5xl">
-      <Link
-        className="inline-flex rounded-md text-sm font-medium text-slate-600 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
-        to={`/incidencias/${encodeURIComponent(incident.id)}`}
-      >
-        Volver a detalle
-      </Link>
+    <div className="space-y-6">
+      <IncidentHeader incident={incident} section="Seguimiento" />
 
-      <header className="mt-5 flex flex-col gap-4 border-b border-slate-200 pb-6 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm font-semibold text-emerald-800">{incident.code}</p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-            {incident.title}
-          </h1>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <span
-            className={`inline-flex rounded-full px-3 py-1.5 text-xs font-medium ${statusStyles[incident.status]}`}
-          >
-            {incident.status}
-          </span>
-          <span
-            className={`inline-flex rounded-full px-3 py-1.5 text-xs font-medium ${priorityStyles[incident.priority]}`}
-          >
-            Prioridad {incident.priority}
-          </span>
-        </div>
-      </header>
-
-      <section className="mt-6 rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <h2 className="text-base font-semibold text-slate-900">
-          Información de gestión
-        </h2>
-        <dl className="mt-5 grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-4">
-          <DetailItem label="Responsable" value={incident.responsible} />
-          <DetailItem label="Estado actual" value={incident.status} />
-          <DetailItem label="Prioridad" value={incident.priority} />
-          <DetailItem
-            label="Última actualización"
-            value={dateTimeFormatter.format(new Date(incident.updatedAt))}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+        <Card>
+          <CardHeader
+            description="Las opciones dependen del estado actual y de tu rol."
+            icon={ShieldCheck}
+            title="Registrar seguimiento"
           />
-        </dl>
-      </section>
-
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(20rem,0.9fr)]">
-        <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-          <h2 className="text-lg font-semibold text-slate-900">
-            Historial de seguimiento
-          </h2>
-          <ol className="mt-5 space-y-5">
-            {incidentFollowUps.map((followUp, index) => (
-              <li className="relative flex gap-4" key={followUp.id}>
-                <div className="relative flex w-4 shrink-0 justify-center">
-                  {index < incidentFollowUps.length - 1 && (
-                    <span className="absolute top-3 h-[calc(100%+1.5rem)] w-px bg-slate-200" />
-                  )}
-                  <span className="relative mt-1.5 size-2.5 rounded-full bg-emerald-700 ring-4 ring-white" />
-                </div>
-                <div className="min-w-0 flex-1 pb-1">
-                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                    <span
-                      className={`inline-flex w-fit rounded-full px-2.5 py-1 text-xs font-medium ${statusStyles[followUp.status]}`}
-                    >
-                      {followUp.status}
-                    </span>
-                    <time
-                      className="text-xs text-slate-500"
-                      dateTime={`${followUp.date}T${followUp.time}:00Z`}
-                    >
-                      {dateTimeFormatter.format(
-                        new Date(`${followUp.date}T${followUp.time}:00Z`),
-                      )}
-                    </time>
+          <div className="p-5 sm:p-6">
+            {available.length === 0 ? (
+              <Alert tone="info" title="Sin acciones disponibles">
+                {incident.status === 'Cerrado' || incident.status === 'Descartado'
+                  ? `La incidencia está ${incident.status.toLowerCase()}.`
+                  : 'Con tu rol no puedes cambiar el estado de esta incidencia en este momento.'}{' '}
+                Puedes consultar el historial completo a la derecha.
+              </Alert>
+            ) : (
+              <form className="space-y-5" noValidate onSubmit={handleSubmit}>
+                <fieldset>
+                  <legend className="text-sm font-medium text-ink-2">¿Qué deseas hacer?</legend>
+                  <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {available.map((key) => {
+                      const info = actionInfo[key]
+                      const Icon = info.icon
+                      const checked = action === key
+                      return (
+                        <label
+                          className={cn(
+                            'flex cursor-pointer gap-3 rounded-xl border p-3.5 transition',
+                            checked
+                              ? info.destructive
+                                ? 'border-rose-500 bg-rose-50 ring-1 ring-rose-500 dark:bg-rose-400/10'
+                                : 'border-emerald-600 bg-emerald-50 ring-1 ring-emerald-600 dark:bg-emerald-400/10'
+                              : 'border-line hover:bg-surface-2',
+                          )}
+                          key={key}
+                        >
+                          <input
+                            checked={checked}
+                            className="sr-only"
+                            name="action"
+                            onChange={() => choose(key)}
+                            type="radio"
+                            value={key}
+                          />
+                          <Icon
+                            aria-hidden="true"
+                            className={cn('mt-0.5 size-5 shrink-0', info.destructive ? 'text-rose-600' : 'text-emerald-700 dark:text-emerald-400')}
+                          />
+                          <span className="min-w-0">
+                            <span className="block text-sm font-semibold text-ink">{info.label}</span>
+                            <span className="mt-0.5 block text-xs leading-5 text-muted">{info.description}</span>
+                          </span>
+                        </label>
+                      )
+                    })}
                   </div>
-                  <p className="mt-2 text-sm font-medium text-slate-700">
-                    {followUp.user}
-                  </p>
-                  {followUp.previousStatus && followUp.newStatus && (
-                    <p className="mt-1 text-xs font-medium text-slate-500">
-                      {followUp.previousStatus} → {followUp.newStatus}
-                    </p>
-                  )}
-                  <p className="mt-1 text-sm leading-6 text-slate-600">
-                    {followUp.reason ? (
-                      <>
-                        <span className="font-medium text-slate-700">Motivo: </span>
-                        {followUp.reason}
-                      </>
-                    ) : (
-                      followUp.observation
+                </fieldset>
+
+                {action && (
+                  <>
+                    {actionInfo[action].to && (
+                      <p className="flex flex-wrap items-center gap-2 text-sm text-ink-2">
+                        Cambio de estado:
+                        <StatusBadge status={incident.status} />→<StatusBadge status={actionInfo[action].to!} />
+                      </p>
                     )}
-                  </p>
-                  {followUp.responsibleUserId && (
-                    <p className="mt-2 text-sm text-slate-600">
-                      Responsable asignado:{' '}
-                      {mockUsers.find(
-                        (user) => user.id === followUp.responsibleUserId,
-                      )?.nombres}{' '}
-                      {mockUsers.find(
-                        (user) => user.id === followUp.responsibleUserId,
-                      )?.apellidos}
-                    </p>
-                  )}
-                </div>
-              </li>
-            ))}
-            {incidentFollowUps.length === 0 && (
-              <li className="rounded-md border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500">
-                Todavía no hay eventos de seguimiento.
-              </li>
-            )}
-          </ol>
-        </section>
 
-        <section className="h-fit rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-          <h2 className="text-lg font-semibold text-slate-900">
-            Agregar seguimiento
-          </h2>
-          <form className="mt-5 space-y-5" noValidate onSubmit={handleSubmit}>
-            <div>
-              <label
-                className="block text-sm font-medium text-slate-700"
-                htmlFor="follow-up-observation"
-              >
-                Observación <span className="text-rose-700">*</span>
-              </label>
-              <textarea
-                aria-describedby={
-                  errors.observation ? 'follow-up-observation-error' : undefined
-                }
-                aria-invalid={Boolean(errors.observation)}
-                className={`${fieldClassName} min-h-28 resize-y leading-6`}
-                id="follow-up-observation"
-                maxLength={1000}
-                name="observation"
-                onChange={(event) => {
-                  setObservation(event.target.value)
-                  setErrors((current) => ({
-                    ...current,
-                    observation: undefined,
-                  }))
-                  setConfirmation('')
-                }}
-                required
-                value={observation}
-              />
-              {errors.observation && (
-                <p
-                  className="mt-1.5 text-sm text-rose-700"
-                  id="follow-up-observation-error"
-                >
-                  {errors.observation}
-                </p>
-              )}
-            </div>
+                    {needsResponsible && (
+                      <ResponsibleField
+                        error={errors.responsible}
+                        excludeId={action === 'reassign' ? incident.responsible?.id : undefined}
+                        label={action === 'reassign' ? 'Nuevo responsable' : 'Responsable'}
+                        onChange={(value) => {
+                          setResponsibleId(value)
+                          setErrors((c) => ({ ...c, responsible: '' }))
+                        }}
+                        value={responsibleId}
+                      />
+                    )}
 
-            {requiresReason && (
-              <div>
-                <label
-                  className="block text-sm font-medium text-slate-700"
-                  htmlFor="follow-up-reason"
-                >
-                  {reasonLabel} <span className="text-rose-700">*</span>
-                </label>
-                <textarea
-                  aria-describedby={
-                    errors.reason ? 'follow-up-reason-error' : undefined
-                  }
-                  aria-invalid={Boolean(errors.reason)}
-                  className={`${fieldClassName} min-h-24 resize-y leading-6`}
-                  id="follow-up-reason"
-                  maxLength={1000}
-                  name="reason"
-                  onChange={(event) => {
-                    setReason(event.target.value)
-                    setErrors((current) => ({
-                      ...current,
-                      reason: undefined,
-                    }))
-                    setConfirmation('')
-                  }}
-                  placeholder={`Describa el motivo${isDiscarding ? ' del descarte' : ' de la reapertura'}...`}
-                  required
-                  value={reason}
-                />
-                {errors.reason && (
-                  <p
-                    className="mt-1.5 text-sm text-rose-700"
-                    id="follow-up-reason-error"
-                  >
-                    {errors.reason}
-                  </p>
-                )}
-              </div>
-            )}
+                    {needsReason && (
+                      <Field
+                        counter={[reason.length, 500]}
+                        error={errors.reason}
+                        id="reason"
+                        label={
+                          action === 'discard'
+                            ? 'Motivo del descarte'
+                            : action === 'reopen'
+                              ? 'Motivo de la reapertura'
+                              : 'Motivo de la reasignación'
+                        }
+                        required
+                      >
+                        <Textarea
+                          maxLength={500}
+                          onChange={(e) => {
+                            setReason(e.target.value)
+                            setErrors((c) => ({ ...c, reason: '' }))
+                          }}
+                          value={reason}
+                        />
+                      </Field>
+                    )}
 
-            <div>
-              <label
-                className="block text-sm font-medium text-slate-700"
-                htmlFor="follow-up-next-status"
-              >
-                Próximo estado <span className="text-rose-700">*</span>
-              </label>
-              <select
-                aria-describedby={
-                  errors.nextStatus ? 'follow-up-next-status-error' : undefined
-                }
-                aria-invalid={Boolean(errors.nextStatus)}
-                className={fieldClassName}
-                disabled={transitions.length === 0}
-                id="follow-up-next-status"
-                name="nextStatus"
-                onChange={(event) => {
-                  const value = event.target.value as IncidentStatus | ''
-                  if (value !== nextStatus) {
-                    setObservation('')
-                    setReason('')
-                  }
-                  setNextStatus(value)
-                  if (value !== 'Asignado') setResponsibleUserId('')
-                  setErrors((current) => ({ ...current, nextStatus: undefined, reason: undefined, responsible: undefined }))
-                  setConfirmation('')
-                }}
-                required
-                value={nextStatus}
-              >
-                <option value="">Seleccionar próximo estado</option>
-                {transitions.map((status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </select>
-              {errors.nextStatus && (
-                <p
-                  className="mt-1.5 text-sm text-rose-700"
-                  id="follow-up-next-status-error"
-                >
-                  {errors.nextStatus}
-                </p>
-              )}
-              {transitions.length === 0 && (
-                <p className="mt-1.5 text-xs leading-5 text-slate-500">
-                  No hay transiciones disponibles para este estado.
-                </p>
-              )}
-            </div>
+                    {action !== 'reassign' && (
+                      <Field
+                        counter={[observation.length, 1000]}
+                        error={errors.observation}
+                        hint={needsObservation ? undefined : 'Opcional.'}
+                        id="observation"
+                        label="Observación"
+                        required={needsObservation}
+                      >
+                        <Textarea
+                          maxLength={1000}
+                          onChange={(e) => {
+                            setObservation(e.target.value)
+                            setErrors((c) => ({ ...c, observation: '' }))
+                          }}
+                          placeholder="Describe brevemente lo realizado o decidido…"
+                          value={observation}
+                        />
+                      </Field>
+                    )}
 
-            {currentIncidentStatus === 'En revisión' && nextStatus === 'Asignado' && (
-              <div>
-                <label
-                  className="block text-sm font-medium text-slate-700"
-                  htmlFor="follow-up-responsible"
-                >
-                  Responsable <span className="text-rose-700">*</span>
-                </label>
-                <select
-                  aria-describedby={
-                    errors.responsible ? 'follow-up-responsible-error' : undefined
-                  }
-                  aria-invalid={Boolean(errors.responsible)}
-                  className={fieldClassName}
-                  id="follow-up-responsible"
-                  name="responsible"
-                  onChange={(event) => {
-                    setResponsibleUserId(event.target.value)
-                    setErrors((current) => ({
-                      ...current,
-                      responsible: undefined,
-                    }))
-                    setConfirmation('')
-                  }}
-                  required
-                  value={responsibleUserId}
-                >
-                  <option value="">Seleccione un responsable</option>
-                  {assignableUsers.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.nombres} {user.apellidos} · {user.role}
-                    </option>
-                  ))}
-                </select>
-                {errors.responsible && (
-                  <p
-                    className="mt-1.5 text-sm text-rose-700"
-                    id="follow-up-responsible-error"
-                  >
-                    {errors.responsible}
-                  </p>
-                )}
-                {selectedResponsible && (
-                  <dl className="mt-3 grid grid-cols-1 gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm sm:grid-cols-2">
-                    <div>
-                      <dt className="text-xs font-medium text-slate-500">
-                        Nombre completo
-                      </dt>
-                      <dd className="mt-1 text-slate-800">
-                        {selectedResponsible.nombres} {selectedResponsible.apellidos}
-                      </dd>
+                    {formError && <Alert tone="error">{formError}</Alert>}
+
+                    <div className="flex justify-end">
+                      <Button
+                        icon={actionInfo[action].icon}
+                        loading={saving}
+                        type="submit"
+                        variant={actionInfo[action].destructive ? 'danger' : 'primary'}
+                      >
+                        {actionInfo[action].label}
+                      </Button>
                     </div>
-                    <div>
-                      <dt className="text-xs font-medium text-slate-500">Rol</dt>
-                      <dd className="mt-1 text-slate-800">
-                        {selectedResponsible.role}
-                      </dd>
-                    </div>
-                    <div className="sm:col-span-2">
-                      <dt className="text-xs font-medium text-slate-500">
-                        Correo electrónico
-                      </dt>
-                      <dd className="mt-1 break-all text-slate-800">
-                        {selectedResponsible.email}
-                      </dd>
-                    </div>
-                  </dl>
+                  </>
                 )}
-              </div>
+              </form>
             )}
+          </div>
+        </Card>
 
-            <button
-              className="inline-flex items-center justify-center rounded-md bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-400"
-              disabled={transitions.length === 0}
-              type="submit"
-            >
-              Registrar seguimiento
-            </button>
-          </form>
-        </section>
+        <Card>
+          <CardHeader icon={History} title="Historial" />
+          <div className="max-h-[70vh] overflow-y-auto p-5 sm:p-6">
+            <Timeline entries={incident.followUps} newestFirst />
+          </div>
+        </Card>
       </div>
 
-      {confirmation && (
-        <p
-          aria-live="polite"
-          className="mt-5 rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm leading-6 text-blue-900"
-          role="status"
-        >
-          {confirmation} Los cambios son temporales y se perderán al recargar.
+      <Modal
+        description={`${incident.code}: ${incident.title}`}
+        footer={
+          <>
+            <Button onClick={() => setConfirming(false)} variant="secondary">
+              Cancelar
+            </Button>
+            <Button data-autofocus icon={action ? actionInfo[action].icon : undefined} onClick={() => void execute()} variant="danger">
+              Sí, {action ? actionInfo[action].label.toLowerCase() : ''}
+            </Button>
+          </>
+        }
+        onClose={() => setConfirming(false)}
+        open={confirming && Boolean(action)}
+        title={action === 'discard' ? '¿Descartar la incidencia?' : '¿Reabrir la incidencia?'}
+      >
+        <p className="text-sm leading-6 text-ink-2">
+          {action === 'discard'
+            ? 'La incidencia quedará descartada y no podrá recibir más acciones.'
+            : 'La incidencia volverá a "En revisión" y la resolución y el cierre anteriores quedarán sin efecto (se conservan en el historial).'}
         </p>
-      )}
-
-      <p className="mt-5 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
-        Los cambios de seguimiento se almacenan temporalmente y se perderán al
-        recargar la página.
-      </p>
-    </section>
+        <p className="mt-3 rounded-lg bg-surface-2 p-3 text-sm text-ink">
+          <span className="font-medium">Motivo:</span> {reason}
+        </p>
+      </Modal>
+    </div>
   )
 }
 

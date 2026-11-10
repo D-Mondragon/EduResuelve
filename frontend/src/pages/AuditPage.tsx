@@ -1,362 +1,297 @@
-import { useEffect, useRef, useState } from 'react'
-import { mockAuditLogs } from '../data/mockAuditLogs'
-import {
-  auditActions,
-  auditModules,
-  type AuditAction,
-  type AuditLog,
-  type AuditModule,
-} from '../types/audit'
+import { CalendarDays, Eye, FileDown, FileSpreadsheet, FilterX, Search, SearchX, ShieldAlert, ShieldCheck, Users } from 'lucide-react'
+import { useCallback, useMemo, useState } from 'react'
+import { useCurrentUser } from '../auth/authContext'
+import { Badge } from '../components/ui/Badge'
+import { Button } from '../components/ui/Button'
+import { DetailItem, EmptyState, ErrorState, LoadingState, PageHeader, StatCard } from '../components/ui/Feedback'
+import { controlClass } from '../components/ui/Field'
+import { Modal } from '../components/ui/Modal'
+import { useAsync } from '../hooks/useAsync'
+import { api } from '../lib/api'
+import { toCsv } from '../lib/csv'
+import { saveBlob } from '../lib/files'
+import { formatDateTime, pluralize, todayInLima } from '../lib/format'
+import { cn } from '../lib/ui'
+import { auditModules, type AuditLog } from '../types/audit'
 
-type ActionFilter = 'Todas' | AuditAction
-type ModuleFilter = 'Todos' | AuditModule
+function limaDate(timestamp: string) {
+  return todayInLima(new Date(timestamp))
+}
 
-const dateTimeFormatter = new Intl.DateTimeFormat('es', {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-  timeZone: 'UTC',
-})
-
-function AuditDetails({ log }: { log: AuditLog }) {
-  const details = [
-    { label: 'Fecha y hora', value: dateTimeFormatter.format(new Date(log.timestamp)) },
-    { label: 'Usuario', value: `${log.userName} (${log.userId})` },
-    { label: 'Acción', value: log.action },
-    { label: 'Módulo', value: log.module },
-    { label: 'Registro relacionado', value: log.entityId },
-    { label: 'Descripción', value: log.description },
-  ]
-
-  return (
-    <dl className="mt-5 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
-      {details.map((detail) => (
-        <div className="min-w-0" key={detail.label}>
-          <dt className="text-xs font-medium text-slate-500">{detail.label}</dt>
-          <dd className="mt-1 break-words text-sm leading-6 text-slate-800">
-            {detail.value}
-          </dd>
-        </div>
-      ))}
-    </dl>
-  )
+function actionTone(action: string) {
+  if (action.startsWith('Intento fallido')) return 'bg-rose-50 text-rose-800 ring-rose-600/20 dark:bg-rose-400/10 dark:text-rose-300'
+  if (/Desactivación|Anulación|Descarte|Reapertura/.test(action))
+    return 'bg-amber-50 text-amber-800 ring-amber-600/20 dark:bg-amber-400/10 dark:text-amber-300'
+  if (/sesión/.test(action)) return 'bg-slate-100 text-slate-700 ring-slate-500/20 dark:bg-slate-400/10 dark:text-slate-300'
+  return 'bg-emerald-50 text-emerald-800 ring-emerald-600/20 dark:bg-emerald-400/10 dark:text-emerald-300'
 }
 
 function AuditPage() {
+  const me = useCurrentUser()
+  const load = useCallback(() => api.listAudit(), [])
+  const { data, error, loading, reload } = useAsync(load)
   const [search, setSearch] = useState('')
-  const [moduleFilter, setModuleFilter] = useState<ModuleFilter>('Todos')
-  const [actionFilter, setActionFilter] = useState<ActionFilter>('Todas')
-  const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null)
-  const closeButtonRef = useRef<HTMLButtonElement>(null)
+  const [module, setModule] = useState('')
+  const [action, setAction] = useState('')
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
+  const [selected, setSelected] = useState<AuditLog | null>(null)
 
-  useEffect(() => {
-    if (!selectedLog) return
+  const logs = useMemo(() => data ?? [], [data])
+  const actions = useMemo(() => Array.from(new Set(logs.map((log) => log.action))).sort(), [logs])
+  const hasFilters = Boolean(search || module || action || from || to)
 
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') setSelectedLog(null)
-    }
+  const filtered = useMemo(() => {
+    const term = search.trim().toLocaleLowerCase('es')
+    return logs.filter((log) => {
+      const day = limaDate(log.timestamp)
+      return (
+        (!term ||
+          [log.userName, log.dni ?? '', log.entityId, log.description, log.action].some((value) =>
+            value.toLocaleLowerCase('es').includes(term),
+          )) &&
+        (!module || log.module === module) &&
+        (!action || log.action === action) &&
+        (!from || day >= from) &&
+        (!to || day <= to)
+      )
+    })
+  }, [logs, search, module, action, from, to])
 
-    document.addEventListener('keydown', handleKeyDown)
-    closeButtonRef.current?.focus()
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [selectedLog])
+  const today = todayInLima()
+  const todayCount = logs.filter((log) => limaDate(log.timestamp) === today).length
+  const failedCount = logs.filter((log) => log.action === 'Intento fallido de inicio de sesión').length
+  const userChanges = logs.filter((log) => log.module === 'Usuarios').length
 
-  const normalizedSearch = search.trim().toLocaleLowerCase('es')
-  const chronologicalLogs = [...mockAuditLogs].sort(
-    (first, second) => Date.parse(second.timestamp) - Date.parse(first.timestamp),
-  )
-  const filteredLogs = chronologicalLogs.filter((log) => {
-    const searchableContent = [
-      log.userName,
-      log.action,
-      log.module,
-      log.entityId,
-      log.description,
-    ]
-      .join(' ')
-      .toLocaleLowerCase('es')
-    const matchesSearch =
-      normalizedSearch.length === 0 || searchableContent.includes(normalizedSearch)
-    const matchesModule =
-      moduleFilter === 'Todos' || log.module === moduleFilter
-    const matchesAction = actionFilter === 'Todas' || log.action === actionFilter
+  function clearFilters() {
+    setSearch('')
+    setModule('')
+    setAction('')
+    setFrom('')
+    setTo('')
+  }
 
-    return matchesSearch && matchesModule && matchesAction
-  })
-
-  const today = new Date().toISOString().slice(0, 10)
-  const incidentModules: AuditModule[] = [
-    'Incidencias',
-    'Seguimiento',
-    'Evidencias',
-    'Resolución',
-    'Cierre',
-  ]
-  const summaryCards = [
-    { label: 'Total de eventos', count: mockAuditLogs.length },
-    {
-      label: 'Eventos de hoy',
-      count: mockAuditLogs.filter((log) => log.timestamp.slice(0, 10) === today)
-        .length,
-    },
-    {
-      label: 'Cambios de estado',
-      count: mockAuditLogs.filter((log) => log.action === 'Cambio de estado')
-        .length,
-    },
-    {
-      label: 'Eventos relacionados con incidencias',
-      count: mockAuditLogs.filter(
-        (log) => incidentModules.includes(log.module) && log.entityId.startsWith('ER-'),
-      ).length,
-    },
-  ]
+  function exportCsv() {
+    const csv = toCsv(
+      ['Fecha y hora (Lima)', 'Usuario', 'DNI', 'Acción', 'Módulo', 'Registro', 'Descripción'],
+      filtered.map((log) => [formatDateTime(log.timestamp), log.userName, log.dni, log.action, log.module, log.entityId, log.description]),
+    )
+    saveBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `auditoria-eduresuelve-${today}.csv`)
+  }
 
   return (
-    <section className="mx-auto w-full max-w-7xl space-y-7">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-          Auditoría
-        </h1>
-        <p className="mt-2 text-sm font-medium text-slate-700 sm:text-base">
-          Registro de actividades y trazabilidad del sistema
-        </p>
-        <p className="mt-1 text-sm leading-6 text-slate-600">
-          Consulta las acciones realizadas sobre los registros de EduResuelve.
-        </p>
-      </header>
-
-      <section aria-label="Indicadores de auditoría">
-        <ul className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {summaryCards.map((card) => (
-            <li
-              className="min-w-0 rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
-              key={card.label}
+    <div className="space-y-6">
+      <PageHeader
+        actions={
+          <>
+            <Button disabled={filtered.length === 0} icon={FileSpreadsheet} onClick={exportCsv} variant="secondary">
+              Exportar CSV
+            </Button>
+            <Button
+              disabled={filtered.length === 0}
+              icon={FileDown}
+              onClick={() => window.print()}
+              title="Abre el diálogo de impresión: elige “Guardar como PDF”"
+              variant="secondary"
             >
-              <p className="text-xs font-medium leading-5 text-slate-600 sm:text-sm">
-                {card.label}
-              </p>
-              <p className="mt-3 text-2xl font-semibold tabular-nums text-slate-900">
-                {card.count}
-              </p>
-            </li>
-          ))}
-        </ul>
-      </section>
+              Exportar PDF
+            </Button>
+          </>
+        }
+        description="Registro inalterable de las acciones realizadas en el sistema."
+        icon={ShieldCheck}
+        title="Auditoría"
+      />
 
-      <section
-        aria-label="Buscar y filtrar registros de auditoría"
-        className="grid grid-cols-1 gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-[minmax(16rem,1fr)_minmax(13rem,0.65fr)_minmax(13rem,0.65fr)] sm:p-5"
-      >
-        <div>
-          <label
-            className="mb-1.5 block text-xs font-medium text-slate-600"
-            htmlFor="audit-search"
-          >
-            Buscar en auditoría
-          </label>
-          <input
-            className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/20"
-            id="audit-search"
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Usuario, acción, módulo o registro..."
-            type="search"
-            value={search}
-          />
-        </div>
-        <div>
-          <label
-            className="mb-1.5 block text-xs font-medium text-slate-600"
-            htmlFor="audit-module"
-          >
-            Módulo
-          </label>
-          <select
-            className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 shadow-sm outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/20"
-            id="audit-module"
-            onChange={(event) => setModuleFilter(event.target.value as ModuleFilter)}
-            value={moduleFilter}
-          >
-            <option value="Todos">Todos</option>
-            {auditModules.map((module) => (
-              <option key={module} value={module}>
-                {module}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label
-            className="mb-1.5 block text-xs font-medium text-slate-600"
-            htmlFor="audit-action"
-          >
-            Acción
-          </label>
-          <select
-            className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 shadow-sm outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/20"
-            id="audit-action"
-            onChange={(event) => setActionFilter(event.target.value as ActionFilter)}
-            value={actionFilter}
-          >
-            <option value="Todas">Todas</option>
-            {auditActions.map((action) => (
-              <option key={action} value={action}>
-                {action}
-              </option>
-            ))}
-          </select>
-        </div>
-      </section>
-
-      <div className="flex items-center justify-between">
-        <p aria-live="polite" className="text-sm font-medium text-slate-600">
-          {filteredLogs.length}{' '}
-          {filteredLogs.length === 1 ? 'registro' : 'registros'}
+      <div className="hidden print:block">
+        <p className="text-sm">
+          Reporte generado por {me.fullName} el {formatDateTime(new Date().toISOString())} ·{' '}
+          {pluralize(filtered.length, 'evento', 'eventos')}
+          {hasFilters && ' (con filtros aplicados)'}
         </p>
       </div>
 
-      {filteredLogs.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-slate-300 bg-white px-5 py-12 text-center text-sm text-slate-600">
-          No se encontraron registros de auditoría.
-        </p>
+      {loading && !data ? (
+        <LoadingState />
+      ) : error && !data ? (
+        <ErrorState error={error} onRetry={() => reload()} />
       ) : (
         <>
-          <div className="hidden overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm md:block">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px] border-collapse text-left text-sm">
-                <caption className="sr-only">
-                  Registro cronológico de actividades
-                </caption>
-                <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-600">
-                  <tr>
-                    <th className="px-4 py-3.5" scope="col">Fecha y hora</th>
-                    <th className="px-4 py-3.5" scope="col">Usuario</th>
-                    <th className="px-4 py-3.5" scope="col">Acción</th>
-                    <th className="px-4 py-3.5" scope="col">Módulo</th>
-                    <th className="px-4 py-3.5" scope="col">Registro relacionado</th>
-                    <th className="px-4 py-3.5" scope="col">Descripción</th>
-                    <th className="px-4 py-3.5" scope="col">Detalle</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredLogs.map((log) => (
-                    <tr className="hover:bg-slate-50/70" key={log.id}>
-                      <td className="whitespace-nowrap px-4 py-4 text-slate-600">
-                        <time dateTime={log.timestamp}>
-                          {dateTimeFormatter.format(new Date(log.timestamp))}
-                        </time>
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-4 font-medium text-slate-800">
-                        {log.userName}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-4 text-slate-700">
-                        {log.action}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-4 text-slate-600">
-                        {log.module}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-4 font-medium text-slate-700">
-                        {log.entityId}
-                      </td>
-                      <td className="max-w-xs px-4 py-4 text-slate-600">
-                        {log.description}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-4">
-                        <button
-                          className="rounded px-2 py-1 font-medium text-emerald-800 hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800"
-                          onClick={() => setSelectedLog(log)}
-                          type="button"
-                        >
-                          Ver detalle
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <section aria-label="Resumen" className="grid grid-cols-2 gap-3 lg:grid-cols-4 print:hidden">
+            <StatCard icon={ShieldCheck} label="Eventos registrados" value={logs.length} />
+            <StatCard
+              icon={CalendarDays}
+              label="Eventos de hoy"
+              tone="bg-blue-50 text-blue-700 dark:bg-blue-400/10 dark:text-blue-300"
+              value={todayCount}
+            />
+            <StatCard
+              icon={ShieldAlert}
+              label="Intentos fallidos"
+              tone="bg-rose-50 text-rose-700 dark:bg-rose-400/10 dark:text-rose-300"
+              value={failedCount}
+            />
+            <StatCard
+              icon={Users}
+              label="Cambios de usuarios"
+              tone="bg-amber-50 text-amber-700 dark:bg-amber-400/10 dark:text-amber-300"
+              value={userChanges}
+            />
+          </section>
+
+          <section
+            aria-label="Filtros"
+            className="grid grid-cols-1 gap-3 rounded-xl border border-line bg-surface p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-[minmax(14rem,1.5fr)_repeat(4,minmax(8rem,1fr))] print:hidden"
+          >
+            <div className="sm:col-span-2 lg:col-span-1">
+              <label className="mb-1.5 block text-xs font-medium text-muted" htmlFor="audit-search">
+                Buscar
+              </label>
+              <div className="relative">
+                <Search aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
+                <input
+                  className={cn(controlClass, 'pl-9')}
+                  id="audit-search"
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Usuario, DNI, registro…"
+                  type="search"
+                  value={search}
+                />
+              </div>
             </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-muted" htmlFor="audit-module">
+                Módulo
+              </label>
+              <select className={controlClass} id="audit-module" onChange={(e) => setModule(e.target.value)} value={module}>
+                <option value="">Todos</option>
+                {auditModules.map((value) => (
+                  <option key={value}>{value}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-muted" htmlFor="audit-action">
+                Acción
+              </label>
+              <select className={controlClass} id="audit-action" onChange={(e) => setAction(e.target.value)} value={action}>
+                <option value="">Todas</option>
+                {actions.map((value) => (
+                  <option key={value}>{value}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-muted" htmlFor="audit-from">
+                Desde
+              </label>
+              <input className={controlClass} id="audit-from" max={to || undefined} onChange={(e) => setFrom(e.target.value)} type="date" value={from} />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-muted" htmlFor="audit-to">
+                Hasta
+              </label>
+              <input className={controlClass} id="audit-to" min={from || undefined} onChange={(e) => setTo(e.target.value)} type="date" value={to} />
+            </div>
+          </section>
+
+          <div className="flex items-center justify-between gap-3 print:hidden">
+            <p aria-live="polite" className="text-sm font-medium text-muted">
+              {pluralize(filtered.length, 'evento', 'eventos')}
+            </p>
+            {hasFilters && (
+              <Button icon={FilterX} onClick={clearFilters} size="sm" variant="ghost">
+                Limpiar filtros
+              </Button>
+            )}
           </div>
 
-          <ul aria-label="Registros de auditoría" className="space-y-3 md:hidden">
-            {filteredLogs.map((log) => (
-              <li
-                className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
-                key={log.id}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="break-words text-sm font-semibold text-slate-900">
-                      {log.action}
-                    </p>
-                    <p className="mt-1 text-sm text-slate-600">{log.userName}</p>
-                  </div>
-                  <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
-                    {log.module}
-                  </span>
-                </div>
-                <p className="mt-3 break-words text-sm leading-6 text-slate-600">
-                  {log.description}
-                </p>
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
-                  <div className="min-w-0 text-xs text-slate-500">
-                    <span className="font-medium text-slate-700">{log.entityId}</span>
-                    <span aria-hidden="true"> · </span>
-                    <time dateTime={log.timestamp}>
-                      {dateTimeFormatter.format(new Date(log.timestamp))}
-                    </time>
-                  </div>
-                  <button
-                    className="rounded px-2 py-1 text-sm font-medium text-emerald-800 hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800"
-                    onClick={() => setSelectedLog(log)}
-                    type="button"
-                  >
-                    Ver detalle
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
+          {filtered.length === 0 ? (
+            <EmptyState description="Ajusta los filtros para ver otros eventos." icon={SearchX} title="Sin eventos" />
+          ) : (
+            <>
+              <div className="hidden overflow-hidden rounded-xl border border-line bg-surface shadow-sm lg:block print:block print:border-0 print:shadow-none">
+                <table className="w-full text-left text-sm print:text-xs">
+                  <caption className="sr-only">Eventos de auditoría</caption>
+                  <thead className="bg-surface-2 text-xs font-semibold uppercase tracking-wide text-muted">
+                    <tr>
+                      <th className="px-5 py-3" scope="col">Fecha y hora</th>
+                      <th className="px-4 py-3" scope="col">Usuario</th>
+                      <th className="px-4 py-3" scope="col">Acción</th>
+                      <th className="px-4 py-3" scope="col">Módulo</th>
+                      <th className="px-4 py-3" scope="col">Registro</th>
+                      <th className="hidden px-4 py-3 print:table-cell" scope="col">Descripción</th>
+                      <th className="px-4 py-3 print:hidden" scope="col"><span className="sr-only">Detalle</span></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-line">
+                    {filtered.map((log) => (
+                      <tr className="hover:bg-surface-2 print:break-inside-avoid" key={log.id}>
+                        <td className="whitespace-nowrap px-5 py-3 text-ink-2">{formatDateTime(log.timestamp)}</td>
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-ink">{log.userName}</p>
+                          {log.dni && <p className="font-mono text-xs text-muted">{log.dni}</p>}
+                        </td>
+                        <td className="px-4 py-3"><Badge className={actionTone(log.action)}>{log.action}</Badge></td>
+                        <td className="px-4 py-3 text-ink-2">{log.module}</td>
+                        <td className="px-4 py-3 font-mono text-xs text-ink-2">{log.entityId}</td>
+                        <td className="hidden px-4 py-3 print:table-cell">{log.description}</td>
+                        <td className="px-4 py-2 print:hidden">
+                          <Button aria-label={`Ver detalle del evento ${log.id}`} icon={Eye} onClick={() => setSelected(log)} size="sm" variant="ghost">
+                            Ver
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <ul className="space-y-3 lg:hidden print:hidden">
+                {filtered.map((log) => (
+                  <li key={log.id}>
+                    <button
+                      className="w-full rounded-xl border border-line bg-surface p-4 text-left shadow-sm hover:border-emerald-500/50"
+                      onClick={() => setSelected(log)}
+                      type="button"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <Badge className={actionTone(log.action)}>{log.action}</Badge>
+                        <span className="text-xs text-muted">{formatDateTime(log.timestamp)}</span>
+                      </div>
+                      <p className="mt-2 text-sm font-medium text-ink">{log.userName}</p>
+                      <p className="mt-0.5 line-clamp-2 text-sm text-muted">{log.description}</p>
+                      <p className="mt-1 text-xs text-muted">
+                        {log.module} · {log.entityId}
+                      </p>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </>
       )}
 
-      {selectedLog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <button
-            aria-label="Cerrar detalle del registro"
-            className="absolute inset-0 cursor-default bg-slate-950/40"
-            onClick={() => setSelectedLog(null)}
-            type="button"
-          />
-          <section
-            aria-labelledby="audit-details-title"
-            aria-modal="true"
-            className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-slate-200 bg-white p-5 shadow-xl sm:p-6"
-            role="dialog"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2
-                  className="text-lg font-semibold text-slate-900"
-                  id="audit-details-title"
-                >
-                  Detalle del registro
-                </h2>
-                <p className="mt-1 text-sm text-slate-600">{selectedLog.id}</p>
-              </div>
-              <button
-                aria-label="Cerrar detalle del registro"
-                className="shrink-0 rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800"
-                onClick={() => setSelectedLog(null)}
-                ref={closeButtonRef}
-                type="button"
-              >
-                Cerrar
-              </button>
+      <Modal onClose={() => setSelected(null)} open={selected !== null} title="Detalle del evento">
+        {selected && (
+          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <DetailItem label="Fecha y hora">{formatDateTime(selected.timestamp)}</DetailItem>
+            <DetailItem label="Usuario">
+              {selected.userName}
+              {selected.dni && <span className="block font-mono text-xs text-muted">DNI {selected.dni}</span>}
+            </DetailItem>
+            <DetailItem label="Acción">{selected.action}</DetailItem>
+            <DetailItem label="Módulo">{selected.module}</DetailItem>
+            <DetailItem label="Registro relacionado">{selected.entityId || '—'}</DetailItem>
+            <DetailItem label="ID de evento">#{selected.id}</DetailItem>
+            <div className="sm:col-span-2">
+              <DetailItem label="Descripción">{selected.description || '—'}</DetailItem>
             </div>
-            <AuditDetails log={selectedLog} />
-          </section>
-        </div>
-      )}
-    </section>
+          </dl>
+        )}
+      </Modal>
+    </div>
   )
 }
 

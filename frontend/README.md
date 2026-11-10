@@ -1,75 +1,68 @@
-# React + TypeScript + Vite
+# EduResuelve — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Plataforma web para registrar, dar seguimiento y resolver incidencias educativas.
+React 19 + Vite + TypeScript + Tailwind CSS v4 + React Router, con backend en **Supabase (PostgreSQL)**.
 
-Currently, two official plugins are available:
+- Configurar Supabase: [`../Supabase_guia.md`](../Supabase_guia.md)
+- Desplegar en Vercel: [`../Vercel_guia.md`](../Vercel_guia.md)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Inicio rápido
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+npm install
+npm run dev:local     # sin internet: API local (PGlite) + datos demo → http://localhost:5173
+# o, con Supabase configurado en .env.local:
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+Usuarios demo (contraseña `EduResuelve2026`): `70000007` Administrador · `70000005` Orientador ·
+`70000003` Docente · `70000001` Estudiante.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Arquitectura
 
 ```
+React (Vite)  ──fetch──▶  Supabase Data API (/rest/v1/rpc/*)  ──▶  Funciones SQL (public)  ──▶  Esquema privado app
+  src/lib/api.ts                                                   validan sesión, rol y RN       tablas con RLS
+```
+
+| Carpeta | Contenido |
+|---|---|
+| `src/auth` | Sesión (token en `localStorage`), login/logout, expiración |
+| `src/lib` | Cliente de API, formatos (hora de Lima), permisos, validaciones, compresión de archivos, CSV, tema |
+| `src/components` | UI accesible reutilizable (botones, campos, modal, toasts, insignias, línea de tiempo) |
+| `src/pages` | Pantallas por módulo |
+| `../supabase` | SQL: esquema, lógica de negocio y datos demo |
+| `scripts` | Emulador local de la API (PGlite) |
+| `tests/sql` | Pruebas de reglas de negocio contra el SQL real |
+| `tests/e2e` | Pruebas end-to-end (Playwright) |
+
+## Matriz de permisos (RN-010)
+
+| Acción | Estudiante | Docente | Orientador | Administrador |
+|---|---|---|---|---|
+| Registrar incidencia | ✅ | ✅ | ✅ | ✅ |
+| Ver incidencias | propias | propias + asignadas | todas | todas |
+| Editar (Nuevo / En revisión) | propias | propias | ✅ | ✅ |
+| Revisar / descartar | ❌ | ❌ | ✅ | ✅ |
+| Asignar / reasignar | ❌ | ❌ | ✅ | ✅ |
+| Atender / resolver | ❌ | si está asignado | si está asignado | ✅ |
+| Cerrar | ❌ | ❌ | ✅ | ✅ |
+| Reabrir | ❌ | ❌ | ❌ | ✅ |
+| Usuarios y auditoría | ❌ | ❌ | ❌ | ✅ |
+
+## Pruebas
+
+```bash
+npm test            # Vitest: reglas SQL (PGlite) + lógica y componentes de la interfaz
+npm run test:e2e    # Playwright: flujos completos en Chromium (escritorio y móvil)
+npm run lint && npm run build
+```
+
+| Suite | Pruebas | Cubre |
+|---|---|---|
+| `tests/sql/auth.test.ts` | 10 | Login por DNI, mensajes genéricos, bloqueo tras 5 intentos, inactivos, tokens, cambio de clave, tablas no expuestas |
+| `tests/sql/workflow.test.ts` | 15 | RN-001 … RN-010, edición (D3), notificaciones, auditoría |
+| `tests/sql/users-evidence.test.ts` | 15 | Gestión de usuarios, reasignación por desactivación (C4), evidencias (tipos, firma, límites, anulación) |
+| `src/lib/lib.test.ts` | 15 | Validaciones, zona horaria, compresión y partición de archivos, CSV, permisos |
+| `src/components/components.test.tsx` | 3 | Accesibilidad de campos, modal y estados |
+| `tests/e2e/*.spec.ts` | 31 | Login, flujo completo por roles, usuarios, evidencias, auditoría, tema, responsive móvil |
