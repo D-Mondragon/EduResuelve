@@ -1,0 +1,202 @@
+EDURESOLVE — CONTEXTO PARA CONTINUAR EL DESARROLLO Fecha: 28/10/2026
+Propósito: entregar este archivo al agente de Antigravity antes de
+seguir programando.
+
+1.  PROYECTO Nombre: EduResuelve. Descripción: plataforma web para
+    gestionar, dar seguimiento y resolver incidencias educativas desde
+    su registro hasta su cierre, conservando trazabilidad, seguridad e
+    integridad de información. Proyecto académico del curso Calidad de
+    Software.
+
+Flujo: Registrar → Clasificar → Revisar → Asignar/Derivar → Atender →
+Resolver → Cerrar. Estados: Nuevo, En revisión, Asignado, En atención,
+Resuelto, Cerrado, Descartado. Transiciones: - Nuevo → En revisión - En
+revisión → Asignado - En revisión → Descartado - Asignado → En
+atención - En atención → Resuelto - Resuelto → Cerrado - Cerrado → En
+revisión (reapertura controlada)
+
+Códigos oficiales: ER-2026-0001, ER-2026-0002, ER-2026-0003,
+ER-2026-0004, ER-2026-0005. Mantener siempre el formato ER-2026-XXXX; no
+reducirlo a ER-0001.
+
+2.  REGLAS DE NEGOCIO RN-001: toda incidencia inicia como Nuevo. RN-002:
+    revisar antes de asignar, resolver o descartar. RN-003: cada cambio
+    de estado registra usuario, fecha/hora, estado anterior y nuevo.
+    RN-004: asignar requiere responsable válido. RN-005: resolver
+    requiere información y acciones de resolución. RN-006: cerrar
+    requiere información suficiente y autorización. RN-007: descartar
+    requiere motivo. RN-008: reabrir requiere autorización y motivo.
+    RN-009: no modificar ni eliminar silenciosamente el historial.
+    RN-010: las transiciones dependen del rol y contexto autorizado. La
+    autorización real NO existe todavía. Las comprobaciones actuales son
+    de frontend/mock y no constituyen seguridad real.
+
+3.  ENTORNO Y TECNOLOGÍAS Ruta local reportada: C: El usuario indicó que
+    el repositorio Git/GitHub ya está creado y subido. Inspeccionar Git
+    antes de cambiar archivos. Versiones reportadas: Node.js 24.14.1,
+    npm 11.11.0, Git 2.53.0.windows.2, VS Code 1.138.0. Frontend: React,
+    Vite, TypeScript, Tailwind CSS v4, React Router (paquete
+    react-router), ESLint. Tailwind v4 usa el plugin oficial de Vite. No
+    asumir que existe tailwind.config.js o PostCSS. No cambiar a
+    react-router-dom. No instalar dependencias sin necesidad
+    justificada. No usar Zustand ni React Query en la etapa actual. No
+    modificar main.tsx ni vite.config.ts salvo que sea estrictamente
+    necesario. Comandos desde frontend: npm run build; npm run lint; npm
+    run dev. El último puerto Vite reportado fue 5184, pero comprobar si
+    sigue activo.
+
+4.  MÓDULOS Y RUTAS Módulos de frontend/mock implementados: Login
+    visual, Dashboard, Incidencias, Registro, Detalle, Seguimiento,
+    Evidencias, Resolución, Cierre, Usuarios y Auditoría. Rutas
+    esperadas:
+
+-   /login
+-   /dashboard
+-   /incidencias
+-   /incidencias/nueva
+-   /incidencias/:id
+-   /incidencias/:id/seguimiento
+-   /incidencias/:id/evidencias
+-   /incidencias/:id/resolucion
+-   /incidencias/:id/cierre
+-   /usuarios
+-   /auditoria
+-   / redirige a /login Archivos reportados: src/routes/AppRouter.tsx y
+    src/layouts/MainLayout.tsx. Confirmar nombres reales en el
+    repositorio.
+
+5.  DATOS Y TIPOS Archivos reportados:
+
+-   src/types/incident.ts
+-   src/data/mockIncidents.ts
+-   src/types/user.ts
+-   src/data/mockUsers.ts
+-   src/types/audit.ts
+-   src/data/mockAuditLogs.ts Tipos de incidencia: Incident, FollowUp,
+    Evidence, Resolution, Closure, IncidentStatus, IncidentPriority,
+    IncidentCategory y EvidenceType. Roles: Estudiante, Docente,
+    Responsable de convivencia, Orientador, Administrador. Estado de
+    usuario: Activo, Inactivo. Tipos de auditoría: AuditAction,
+    AuditModule, AuditLog. Fixtures reportados:
+-   ER-2026-0001: En revisión
+-   ER-2026-0002: Asignado
+-   ER-2026-0003: En atención
+-   ER-2026-0004: Cerrado
+-   ER-2026-0005: Resuelto Los mocks se restauran al recargar; todavía
+    no hay persistencia real.
+
+6.  ESTADO COMPARTIDO Y TRAZABILIDAD Se implementó estado compartido
+    durante la navegación SPA con React Context + useReducer, sin
+    dependencias. Archivos reportados: src/store/incidentSession.ts y
+    src/store/IncidentSessionProvider.tsx. El provider inicializa desde
+    copias de mocks; los cambios duran la sesión y se pierden al
+    recargar. Seguimiento registra transiciones y FollowUp. FollowUp
+    puede tener previousStatus y newStatus opcionales para
+    compatibilidad. Resolución solo desde “En atención” a “Resuelto”;
+    registra resolución y FollowUp. Cierre solo desde “Resuelto” a
+    “Cerrado”; requiere confirmación y registra cierre y FollowUp.
+    Asignación RN-004 recién implementada: “En revisión” → “Asignado”
+    exige responsable. Se usan usuarios activos con roles Docente,
+    Responsable de convivencia, Orientador o Administrador. Estudiante
+    no es responsable elegible. Validación tanto en página como en
+    provider. Registra responsable, usuario, fecha/hora, observación y
+    evento. El detalle muestra nombre, rol y correo del responsable.
+    Todo esto sigue siendo mock/frontend, no persistencia ni
+    autorización real.
+
+7.  FASE ACTUAL Y SIGUIENTE TAREA Última tarea completada: regla RN-004
+    de asignación con responsable válido. El reporte indicó que build y
+    lint pasaron, el responsable aparece en detalle/listado/Dashboard y
+    recargar restaura fixtures. Siguiente tarea pendiente: RN-007
+    descarte con motivo obligatorio y RN-008 reapertura con motivo
+    obligatorio. El prompt de esta tarea ya estaba preparado, pero aún
+    no se había ejecutado cuando se creó este documento.
+
+Requisitos: - Descarte solo desde “En revisión” → “Descartado”. - Campo
+obligatorio “Motivo del descarte”; si vacío, bloquear y mostrar “Debe
+indicar el motivo del descarte.” - Reapertura solo desde “Cerrado” → “En
+revisión”. - Campo obligatorio “Motivo de reapertura”; si vacío,
+bloquear y mostrar “Debe indicar el motivo de la reapertura.” - El
+provider/reducer debe validar transiciones y motivos, no confiar solo en
+la UI. - Registrar FollowUp con incidentId, fecha/hora, usuario,
+previousStatus, newStatus y motivo/observación. - Mostrar motivo en el
+historial sin inventar datos anteriores. - Mantener estados iniciales de
+los cinco fixtures. - Recargar debe restaurar los mocks. - Probar casos
+válidos e inválidos. - Ejecutar npm run build y npm run lint. - No hacer
+refactorización general ni modificar módulos no relacionados.
+
+8.  OTROS HALLAZGOS DE LA AUDITORÍA ANTERIOR
+
+-   mockAuditLogs.ts tiene posibles inconsistencias entre userId y
+    userName, y timestamps que no coinciden con otros historiales.
+-   Cierre verifica estado Resuelto y confirmación, pero no tiene
+    autorización real; comprobar que la información de resolución sea
+    suficiente.
+-   IncidentsPage puede omitir “Descartado” en el filtro.
+-   NewIncidentPage define categorías/prioridades con unions locales en
+    vez de reutilizar tipos centrales.
+-   Se repiten mapas de estilos de estados/prioridades y formato de
+    fechas.
+-   No hay ruta comodín para URLs desconocidas.
+-   index.html declara lang=“en” aunque la UI está en español, y el
+    título sigue siendo “frontend”.
+-   Modales no implementan trampa/restauración de foco.
+-   No hay script de pruebas automatizadas en package.json.
+-   Algunas tablas usan desplazamiento horizontal interno en móvil. No
+    arreglar todo de golpe; priorizar en bloques pequeños.
+
+9.  BACKEND PLANEADO, NO INICIADO Arquitectura objetivo:
+    React/Vite/Tailwind → NestJS REST API → reglas de negocio/servicios
+    → PostgreSQL. Backend futuro: módulos auth, users, roles, incidents,
+    categories, priorities, statuses, assignments, follow-up, evidence,
+    dashboard, audit y common; capas Controllers, Services, Business
+    Rules, Guards/Authorization, Validation, Repositories y Database. No
+    comenzar backend hasta terminar las correcciones esenciales del
+    flujo, corregir coherencia de auditoría, consolidar tipos críticos y
+    revisar build/lint. El backend debe validar reglas y permisos del
+    lado servidor; las validaciones de frontend no sustituyen seguridad
+    real.
+
+10. INSTRUCCIONES PARA ANTIGRAVITY Antes de modificar:
+
+11. Inspeccionar la raíz del proyecto, frontend/package.json y
+    estructura actual.
+
+12. Revisar git status y no descartar cambios del usuario.
+
+13. Leer los archivos relevantes (tipos, mocks, provider/reducer y
+    páginas).
+
+14. Confirmar nombres y rutas reales; este documento es contexto
+    histórico, el código actual es la fuente de verdad.
+
+15. No asumir que Vite sigue activo.
+
+16. Mantener códigos ER-2026-XXXX.
+
+17. No cambiar tecnologías ni instalar dependencias sin necesidad.
+
+18. No implementar backend/PostgreSQL/JWT/Zustand/React Query todavía.
+
+19. Hacer cambios mínimos y enfocados; no sobrescribir trabajo
+    existente.
+
+20. Ejecutar npm run build y npm run lint desde frontend.
+
+21. Reportar archivos modificados, validaciones y resultados reales. No
+    afirmar que se ejecutó una prueba si no se ejecutó.
+
+22. No avanzar automáticamente al siguiente bloque; entregar resultado y
+    esperar revisión.
+
+23. PROMPT INICIAL PARA ANTIGRAVITY “Lee este documento como contexto
+    del proyecto. Inspecciona el repositorio real y su estado actual. No
+    modifiques archivos todavía. Confirma la ubicación/estructura,
+    tecnologías y dependencias, rutas y páginas, funcionamiento actual
+    de IncidentSessionProvider/reducer, estado de RN-004, pendientes que
+    siguen vigentes y estado de Git/cambios sin confirmar. Entrega un
+    diagnóstico breve y espera autorización antes de modificar código.
+    La siguiente tarea prevista es implementar RN-007 (descarte con
+    motivo obligatorio) y RN-008 (reapertura con motivo obligatorio),
+    usando el prompt específico que proporcionaré después de confirmar
+    el estado real del repositorio.”
