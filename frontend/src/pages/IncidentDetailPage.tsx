@@ -1,238 +1,227 @@
-import { Link, useParams } from 'react-router'
-import { mockUsers } from '../data/mockUsers'
-import { useIncidentSession } from '../store/incidentSession'
-import type { IncidentPriority, IncidentStatus } from '../types/incident'
+import {
+  ArrowRight,
+  CheckCircle2,
+  FileText,
+  History,
+  Info,
+  Lock,
+  MessageSquarePlus,
+  Paperclip,
+  PencilLine,
+  Send,
+  Sparkles,
+  Workflow,
+} from 'lucide-react'
+import { useState, type FormEvent } from 'react'
+import { IncidentHeader } from '../components/incident/IncidentHeader'
+import { Timeline } from '../components/incident/Timeline'
+import { useToast } from '../components/toast/toastContext'
+import { Button, ButtonLink } from '../components/ui/Button'
+import { Card, CardHeader, DetailItem, ErrorState, LoadingState } from '../components/ui/Feedback'
+import { Textarea } from '../components/ui/Field'
+import { useIncident } from '../hooks/useIncident'
+import { api, ApiError } from '../lib/api'
+import { formatDate, formatDateTime, pluralize } from '../lib/format'
+import { can, nextStep } from '../lib/permissions'
+import type { IncidentDetail } from '../types/incident'
 
-const statusStyles: Record<IncidentStatus, string> = {
-  Nuevo: 'bg-sky-50 text-sky-800',
-  'En revisión': 'bg-blue-50 text-blue-800',
-  Asignado: 'bg-indigo-50 text-indigo-800',
-  'En atención': 'bg-amber-50 text-amber-800',
-  Resuelto: 'bg-emerald-50 text-emerald-800',
-  Cerrado: 'bg-slate-100 text-slate-700',
-  Descartado: 'bg-slate-100 text-slate-600',
-}
+function ObservationForm({ incident, onSaved }: { incident: IncidentDetail; onSaved: () => void }) {
+  const [text, setText] = useState('')
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const { notify } = useToast()
 
-const priorityStyles: Record<IncidentPriority, string> = {
-  Baja: 'bg-slate-100 text-slate-700',
-  Media: 'bg-blue-50 text-blue-800',
-  Alta: 'bg-orange-50 text-orange-800',
-  Crítica: 'bg-rose-50 text-rose-800',
-}
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!text.trim()) {
+      setError('Escribe la observación antes de enviarla.')
+      return
+    }
+    setSaving(true)
+    try {
+      await api.addObservation(incident.code, text)
+      setText('')
+      setError('')
+      notify('Observación agregada al historial.')
+      onSaved()
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'No se pudo guardar la observación.')
+    } finally {
+      setSaving(false)
+    }
+  }
 
-const dateFormatter = new Intl.DateTimeFormat('es', {
-  dateStyle: 'long',
-  timeZone: 'UTC',
-})
-
-const dateTimeFormatter = new Intl.DateTimeFormat('es', {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-  timeZone: 'UTC',
-})
-
-function DetailItem({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <dt className="text-xs font-medium text-slate-500">{label}</dt>
-      <dd className="mt-1 text-sm leading-6 text-slate-800">{value}</dd>
-    </div>
+    <form className="border-t border-line px-5 py-4 sm:px-6" noValidate onSubmit={handleSubmit}>
+      <label className="flex items-center gap-2 text-sm font-medium text-ink-2" htmlFor="observation">
+        <MessageSquarePlus aria-hidden="true" className="size-4" />
+        Agregar observación
+      </label>
+      <Textarea
+        aria-describedby={error ? 'observation-error' : undefined}
+        aria-invalid={error ? true : undefined}
+        className="mt-2 min-h-20"
+        id="observation"
+        maxLength={1000}
+        onChange={(event) => {
+          setText(event.target.value)
+          setError('')
+        }}
+        placeholder="Comparte un avance, acuerdo o dato relevante…"
+        value={text}
+      />
+      {error && (
+        <p className="mt-1.5 text-sm text-rose-700 dark:text-rose-400" id="observation-error">
+          {error}
+        </p>
+      )}
+      <div className="mt-3 flex justify-end">
+        <Button icon={Send} loading={saving} size="sm" type="submit">
+          Publicar
+        </Button>
+      </div>
+    </form>
   )
 }
 
 function IncidentDetailPage() {
-  const { id } = useParams()
-  const { incidents, followUps } = useIncidentSession()
-  const incident = incidents.find((item) => item.id === id)
+  const { data: incident, error, loading, reload } = useIncident()
 
-  if (!incident) {
-    return (
-      <section className="mx-auto flex min-h-[50vh] max-w-xl flex-col items-start justify-center">
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
-          Incidencia no encontrada
-        </h1>
-        <p className="mt-2 text-sm leading-6 text-slate-600">
-          No encontramos una incidencia con el código solicitado.
-        </p>
-        <Link
-          className="mt-6 inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-500"
-          to="/incidencias"
-        >
-          Volver a incidencias
-        </Link>
-      </section>
-    )
-  }
+  if (loading && !incident) return <LoadingState />
+  if (error || !incident) return <ErrorState error={error ?? new Error('Incidencia no encontrada.')} onRetry={() => reload()} />
 
-  const responsibleUser = incident.responsibleUserId
-    ? mockUsers.find((user) => user.id === incident.responsibleUserId)
-    : undefined
-  const incidentFollowUps = followUps.filter(
-    (entry) => entry.incidentId === incident.id,
-  )
+  const base = `/incidencias/${encodeURIComponent(incident.code)}`
+  const step = nextStep(incident)
+  const activeEvidences = incident.evidences.filter((e) => e.status === 'Activa').length
 
   return (
-    <section className="mx-auto w-full max-w-7xl">
-      <Link
-        className="inline-flex rounded-md text-sm font-medium text-slate-600 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
-        to="/incidencias"
-      >
-        Volver a incidencias
-      </Link>
+    <div className="space-y-6">
+      <IncidentHeader
+        actions={
+          <>
+            {can(incident, 'edit') && (
+              <ButtonLink icon={PencilLine} to={`${base}/editar`} variant="secondary">
+                Editar
+              </ButtonLink>
+            )}
+            <ButtonLink icon={Paperclip} to={`${base}/evidencias`} variant="secondary">
+              Evidencias ({activeEvidences})
+            </ButtonLink>
+            <ButtonLink icon={Workflow} to={`${base}/seguimiento`} variant="secondary">
+              Seguimiento
+            </ButtonLink>
+          </>
+        }
+        incident={incident}
+      />
 
-      <header className="mt-5 flex flex-col gap-4 border-b border-slate-200 pb-6 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm font-semibold text-emerald-800">
-            {incident.code}
-          </p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-            {incident.title}
-          </h1>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <span
-            className={`inline-flex rounded-full px-3 py-1.5 text-xs font-medium ${statusStyles[incident.status]}`}
-          >
-            {incident.status}
-          </span>
-          <span
-            className={`inline-flex rounded-full px-3 py-1.5 text-xs font-medium ${priorityStyles[incident.priority]}`}
-          >
-            Prioridad {incident.priority}
-          </span>
-          <Link
-            className="inline-flex items-center justify-center rounded-md bg-emerald-800 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800"
-            to={`/incidencias/${encodeURIComponent(incident.id)}/evidencias`}
-          >
-            Ver evidencias
-          </Link>
-          <Link
-            className="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800"
-            to={`/incidencias/${encodeURIComponent(incident.id)}/seguimiento`}
-          >
-            Ver seguimiento
-          </Link>
-          <Link
-            className="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800"
-            to={`/incidencias/${encodeURIComponent(incident.id)}/resolucion`}
-          >
-            Registrar resolución
-          </Link>
-          <Link
-            className="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800"
-            to={`/incidencias/${encodeURIComponent(incident.id)}/cierre`}
-          >
-            Cerrar incidencia
-          </Link>
-        </div>
-      </header>
+      {step ? (
+        <section
+          aria-label="Siguiente paso"
+          className="flex flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 sm:flex-row sm:items-center sm:justify-between dark:border-emerald-400/30 dark:bg-emerald-400/10"
+        >
+          <div className="flex items-start gap-3">
+            <Sparkles aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-emerald-700 dark:text-emerald-300" />
+            <div>
+              <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-200">Siguiente paso: {step.label}</p>
+              <p className="mt-0.5 text-sm text-emerald-800 dark:text-emerald-300/90">{step.description}</p>
+            </div>
+          </div>
+          <ButtonLink className="shrink-0" icon={ArrowRight} to={step.to}>
+            {step.label}
+          </ButtonLink>
+        </section>
+      ) : (
+        incident.status !== 'Cerrado' &&
+        incident.status !== 'Descartado' && (
+          <section className="flex items-start gap-3 rounded-xl border border-line bg-surface p-4 text-sm text-ink-2">
+            <Info aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-muted" />
+            <p>
+              No tienes acciones pendientes en esta incidencia. Te avisaremos con una notificación cuando cambie de estado.
+            </p>
+          </section>
+        )
+      )}
 
-      <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(18rem,1fr)]">
-        <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-          <h2 className="text-base font-semibold text-slate-900">
-            Información de la incidencia
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(18rem,1fr)]">
+        <Card className="p-5 sm:p-6">
+          <h2 className="flex items-center gap-2 text-base font-semibold text-ink">
+            <FileText aria-hidden="true" className="size-5 text-emerald-700 dark:text-emerald-400" />
+            Descripción
           </h2>
-          <p className="mt-3 text-sm leading-7 text-slate-700">
-            {incident.description}
-          </p>
-          <dl className="mt-6 grid grid-cols-1 gap-x-6 gap-y-5 border-t border-slate-100 pt-5 sm:grid-cols-2">
-            <DetailItem label="Categoría" value={incident.category} />
-            <DetailItem
-              label="Fecha del incidente"
-              value={dateFormatter.format(new Date(`${incident.incidentDate}T00:00:00Z`))}
-            />
-            <DetailItem label="Lugar" value={incident.location} />
-            <DetailItem
-              label="Personas involucradas"
-              value={incident.involvedPeople}
-            />
+          <p className="mt-3 whitespace-pre-line text-sm leading-7 text-ink-2">{incident.description}</p>
+          <dl className="mt-6 grid grid-cols-1 gap-x-6 gap-y-4 border-t border-line pt-5 sm:grid-cols-2">
+            <DetailItem label="Categoría">{incident.category}</DetailItem>
+            <DetailItem label="Fecha del incidente">{formatDate(incident.incidentDate, 'long')}</DetailItem>
+            <DetailItem label="Lugar">{incident.location}</DetailItem>
+            <DetailItem label="Personas involucradas">{incident.involvedPeople || 'No especificado'}</DetailItem>
           </dl>
-        </section>
+        </Card>
 
-        <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-          <h2 className="text-base font-semibold text-slate-900">
-            Información de gestión
-          </h2>
-          <dl className="mt-5 grid grid-cols-1 gap-y-5">
-            {responsibleUser ? (
-              <>
-                <DetailItem
-                  label="Responsable"
-                  value={`${responsibleUser.nombres} ${responsibleUser.apellidos}`}
-                />
-                <DetailItem label="Rol del responsable" value={responsibleUser.role} />
-                <DetailItem
-                  label="Correo del responsable"
-                  value={responsibleUser.email}
-                />
-              </>
-            ) : incident.responsible ? (
-              <DetailItem label="Responsable" value={incident.responsible} />
-            ) : null}
-            <DetailItem
-              label="Fecha de registro"
-              value={dateTimeFormatter.format(new Date(incident.registeredAt))}
-            />
-            <DetailItem
-              label="Última actualización"
-              value={dateTimeFormatter.format(new Date(incident.updatedAt))}
-            />
-            <DetailItem label="Observaciones" value={incident.observations} />
+        <Card className="p-5 sm:p-6">
+          <h2 className="text-base font-semibold text-ink">Gestión</h2>
+          <dl className="mt-4 space-y-4">
+            <DetailItem label="Responsable">
+              {incident.responsible ? (
+                <>
+                  {incident.responsible.fullName}
+                  <span className="block text-xs text-muted">
+                    {incident.responsible.role} · {incident.responsible.email}
+                  </span>
+                </>
+              ) : (
+                <span className="text-muted">Pendiente de asignación</span>
+              )}
+            </DetailItem>
+            <DetailItem label="Registrada por">
+              {incident.reporter?.fullName ?? '—'}
+              <span className="block text-xs text-muted">{formatDateTime(incident.registeredAt)}</span>
+            </DetailItem>
+            <DetailItem label="Última actualización">{formatDateTime(incident.updatedAt)}</DetailItem>
+            <DetailItem label="Evidencias">{pluralize(activeEvidences, 'archivo activo', 'archivos activos')}</DetailItem>
           </dl>
-        </section>
-
-        <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-6 lg:col-span-2">
-          <h2 className="text-base font-semibold text-slate-900">Historial</h2>
-          <ol className="mt-5 space-y-5">
-            {incidentFollowUps.map((entry, index) => (
-              <li className="relative flex gap-4" key={entry.id}>
-                <div className="relative flex w-4 shrink-0 justify-center">
-                  {index < incidentFollowUps.length - 1 && (
-                    <span className="absolute top-3 h-[calc(100%+1.5rem)] w-px bg-slate-200" />
-                  )}
-                  <span className="relative mt-1.5 size-2.5 rounded-full bg-emerald-700 ring-4 ring-white" />
-                </div>
-                <div className="min-w-0 flex-1 pb-1">
-                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                    <span
-                      className={`inline-flex w-fit rounded-full px-2.5 py-1 text-xs font-medium ${statusStyles[entry.status]}`}
-                    >
-                      {entry.status}
-                    </span>
-                    <time
-                      className="text-xs text-slate-500"
-                      dateTime={`${entry.date}T${entry.time}:00Z`}
-                    >
-                      {dateTimeFormatter.format(
-                        new Date(`${entry.date}T${entry.time}:00Z`),
-                      )}
-                    </time>
-                  </div>
-                  <p className="mt-2 text-sm font-medium text-slate-700">{entry.user}</p>
-                  {entry.previousStatus && entry.newStatus && (
-                    <p className="mt-1 text-xs font-medium text-slate-500">
-                      {entry.previousStatus} → {entry.newStatus}
-                    </p>
-                  )}
-                  {entry.reason && (
-                    <p className="mt-1 text-sm leading-6 text-slate-800">
-                      <span className="font-medium text-slate-700">Motivo: </span>
-                      {entry.reason}
-                    </p>
-                  )}
-                  <p className="mt-1 text-sm leading-6 text-slate-600">{entry.observation}</p>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </section>
-
-        <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600 lg:col-span-2">
-          Las acciones de gestión estarán disponibles cuando se implemente el
-          backend.
-        </p>
+        </Card>
       </div>
-    </section>
+
+      {incident.resolution && (
+        <Card>
+          <CardHeader
+            description={`Registrada por ${incident.resolution.registeredBy?.fullName ?? '—'} el ${formatDate(incident.resolution.resolutionDate, 'long')}`}
+            icon={CheckCircle2}
+            title="Resolución"
+          />
+          <dl className="grid grid-cols-1 gap-x-6 gap-y-4 p-5 sm:grid-cols-2 sm:p-6">
+            <DetailItem label="Resumen">{incident.resolution.summary}</DetailItem>
+            <DetailItem label="Acciones realizadas">{incident.resolution.actionsTaken}</DetailItem>
+            <DetailItem label="Resultado">{incident.resolution.result}</DetailItem>
+            <DetailItem label="Observaciones">{incident.resolution.observations || 'Sin observaciones'}</DetailItem>
+          </dl>
+        </Card>
+      )}
+
+      {incident.closure && (
+        <Card>
+          <CardHeader
+            description={`Cerrada por ${incident.closure.closedBy?.fullName ?? '—'} el ${formatDateTime(incident.closure.closedAt)}`}
+            icon={Lock}
+            title="Cierre"
+          />
+          <p className="p-5 text-sm text-ink-2 sm:p-6">{incident.closure.observations || 'Sin observaciones de cierre.'}</p>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader
+          description="Registro inmutable de cada movimiento (RN-003 / RN-009)"
+          icon={History}
+          title="Historial"
+        />
+        <div className="p-5 sm:p-6">
+          <Timeline entries={incident.followUps} newestFirst />
+        </div>
+        {can(incident, 'observe') && <ObservationForm incident={incident} onSaved={() => reload(true)} />}
+      </Card>
+    </div>
   )
 }
 

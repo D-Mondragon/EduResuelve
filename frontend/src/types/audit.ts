@@ -1,38 +1,36 @@
-export const auditActions = [
-  'Inicio de sesión',
-  'Registro de incidencia',
-  'Cambio de estado',
-  'Asignación',
-  'Derivación',
-  'Seguimiento',
-  'Registro de evidencia',
-  'Resolución',
-  'Cierre',
-  'Reapertura',
-  'Actualización de usuario',
-] as const
-
-export type AuditAction = (typeof auditActions)[number]
-
 export const auditModules = [
   'Autenticación',
   'Incidencias',
   'Seguimiento',
   'Evidencias',
-  'Usuarios',
   'Resolución',
   'Cierre',
+  'Usuarios',
 ] as const
-
 export type AuditModule = (typeof auditModules)[number]
 
 export interface AuditLog {
-  id: string
+  id: number
   timestamp: string
-  userId: string
+  userId: string | null
   userName: string
-  action: AuditAction
+  dni: string | null
+  action: string
   module: AuditModule
   entityId: string
   description: string
+}
+
+export interface AppNotification {
+  id: number
+  incidentCode: string | null
+  title: string
+  body: string
+  read: boolean
+  createdAt: string
+}
+
+export interface NotificationList {
+  unread: number
+  items: AppNotification[]
 }

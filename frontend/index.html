@@ -1,13 +1,23 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="EduResuelve: gestión, seguimiento y resolución de incidencias educativas." />
+    <meta name="theme-color" content="#047857" />
+    <title>EduResuelve</title>
+    <script>
+      // Aplica el tema antes de pintar para evitar parpadeo
+      try {
+        var t = localStorage.getItem('eduresuelve.theme') || 'system'
+        var d = t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
+        if (d) document.documentElement.classList.add('dark')
+        document.documentElement.style.colorScheme = d ? 'dark' : 'light'
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
-</html>

@@ -1,27 +1,102 @@
-export type IncidentStatus =
-  | 'Nuevo'
-  | 'En revisión'
-  | 'Asignado'
-  | 'En atención'
-  | 'Resuelto'
-  | 'Cerrado'
-  | 'Descartado'
+import type { UserRef } from './user'
 
-export type IncidentPriority = 'Baja' | 'Media' | 'Alta' | 'Crítica'
+export const incidentStatuses = [
+  'Nuevo',
+  'En revisión',
+  'Asignado',
+  'En atención',
+  'Resuelto',
+  'Cerrado',
+  'Descartado',
+] as const
+export type IncidentStatus = (typeof incidentStatuses)[number]
 
-export type IncidentCategory =
-  | 'Convivencia'
-  | 'Académica'
-  | 'Infraestructura'
-  | 'Orientación'
-  | 'Administrativa'
+export const incidentPriorities = ['Baja', 'Media', 'Alta', 'Crítica'] as const
+export type IncidentPriority = (typeof incidentPriorities)[number]
 
-export type EvidenceType =
-  | 'Documento'
-  | 'Imagen'
-  | 'Captura de pantalla'
-  | 'Informe'
-  | 'Otro'
+export const incidentCategories = [
+  'Convivencia',
+  'Académica',
+  'Infraestructura',
+  'Orientación',
+  'Administrativa',
+] as const
+export type IncidentCategory = (typeof incidentCategories)[number]
+
+export const evidenceTypes = ['Documento', 'Imagen', 'Captura de pantalla', 'Informe', 'Otro'] as const
+export type EvidenceType = (typeof evidenceTypes)[number]
+
+/** Acciones que el backend autoriza para el usuario actual (RN-010). */
+export type IncidentAction =
+  | 'edit'
+  | 'review'
+  | 'assign'
+  | 'discard'
+  | 'start'
+  | 'resolve'
+  | 'reassign'
+  | 'close'
+  | 'reopen'
+  | 'observe'
+  | 'evidence'
+
+export type TransitionAction = 'review' | 'assign' | 'start' | 'discard' | 'reopen'
+
+export interface IncidentSummary {
+  code: string
+  title: string
+  category: IncidentCategory
+  priority: IncidentPriority
+  status: IncidentStatus
+  incidentDate: string
+  location: string
+  registeredAt: string
+  updatedAt: string
+  pendingReassignment: boolean
+  reporter: UserRef | null
+  responsible: UserRef | null
+  allowedActions: IncidentAction[]
+}
+
+export type FollowUpKind =
+  | 'Registro'
+  | 'Cambio de estado'
+  | 'Asignación'
+  | 'Reasignación'
+  | 'Edición'
+  | 'Observación'
+  | 'Evidencia'
+
+export interface FollowUp {
+  id: number
+  kind: FollowUpKind
+  previousStatus: IncidentStatus | null
+  newStatus: IncidentStatus | null
+  observation: string
+  reason: string | null
+  responsible: UserRef | null
+  user: UserRef | null
+  createdAt: string
+}
+
+export interface Evidence {
+  id: number
+  fileName: string
+  mimeType: string
+  sizeBytes: number
+  originalSizeBytes: number
+  compressed: boolean
+  evidenceType: EvidenceType
+  description: string
+  status: 'Activa' | 'Anulada'
+  voidReason: string | null
+  voidedAt: string | null
+  voidedBy: UserRef | null
+  uploadedBy: UserRef | null
+  uploadedAt: string
+  chunkCount: number
+  canVoid: boolean
+}
 
 export interface Resolution {
   summary: string
@@ -29,57 +104,40 @@ export interface Resolution {
   result: string
   observations: string
   resolutionDate: string
-  registeredBy: string
+  registeredBy: UserRef | null
+  registeredAt: string
 }
 
 export interface Closure {
-  closureObservations: string
+  observations: string
+  closedBy: UserRef | null
   closedAt: string
-  closedBy: string
 }
 
-export interface Incident {
-  id: string
-  code: string
+export interface IncidentDetail extends IncidentSummary {
+  description: string
+  involvedPeople: string
+  observations: string
+  followUps: FollowUp[]
+  evidences: Evidence[]
+  resolution: Resolution | null
+  closure: Closure | null
+}
+
+export interface IncidentFormData {
   title: string
   description: string
-  category: IncidentCategory
-  priority: IncidentPriority
-  status: IncidentStatus
+  category: IncidentCategory | ''
+  priority: IncidentPriority | ''
   incidentDate: string
   location: string
   involvedPeople: string
-  registeredAt: string
-  updatedAt: string
-  responsible: string
-  responsibleUserId?: string
+}
+
+export interface ResolutionFormData {
+  summary: string
+  actionsTaken: string
+  result: string
   observations: string
-  resolution?: Resolution
-  closure?: Closure
-}
-
-export interface FollowUp {
-  id: number
-  incidentId: string
-  status: IncidentStatus
-  previousStatus?: IncidentStatus
-  newStatus?: IncidentStatus
-  responsibleUserId?: string
-  reason?: string
-  date: string
-  time: string
-  user: string
-  observation: string
-}
-
-export interface Evidence {
-  id: number
-  incidentId: string
-  fileName: string
-  fileType: string
-  fileSize: number
-  evidenceType: EvidenceType
-  description: string
-  registeredAt: string
-  registeredBy: string
+  resolutionDate: string
 }
