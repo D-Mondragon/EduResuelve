@@ -4,6 +4,14 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   plugins: [react()],
   test: {
+    // Cobertura del código del frontend (las reglas SQL se miden por casos de prueba, no por líneas)
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/**/*.test.{ts,tsx}', 'src/test/**', 'src/main.tsx', 'src/vite-env.d.ts', 'src/**/*.d.ts'],
+      reporter: ['text-summary', 'text', 'html', 'json-summary'],
+      reportsDirectory: './coverage',
+    },
     projects: [
       {
         extends: true,
