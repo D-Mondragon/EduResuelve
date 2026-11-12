@@ -454,7 +454,11 @@ begin
       from app.closures c
       where c.incident_code = v_inc.code and not c.superseded
       order by c.id desc limit 1
-    )
+    ),
+    'actas', coalesce((
+      select jsonb_agg(app.acta_meta_json(a) order by a.seq desc)
+      from app.actas a where a.incident_code = v_inc.code
+    ), '[]'::jsonb)
   );
 end;
 $$;
@@ -632,6 +636,7 @@ begin
     update app.resolutions set superseded = true where incident_code = v_inc.code;
     update app.closures set superseded = true where incident_code = v_inc.code;
     update app.incidents set status = v_next, updated_at = now() where code = v_inc.code;
+    perform app.replace_actas(v_inc.code, 'Incidencia reabierta. Motivo: ' || v_reason);
     v_audit_action := 'Reapertura';
   else
     update app.incidents set status = v_next, updated_at = now() where code = v_inc.code;
@@ -760,6 +765,7 @@ begin
   perform app.add_follow_up(v_inc.code, 'Cambio de estado', v_inc.status, 'Resuelto',
     'Resolución registrada: ' || app.text_field(p_data, 'summary'), null, null, v_user.id);
   perform app.log(v_user, 'Resolución', 'Resolución', v_inc.code, 'En atención → Resuelto.');
+  perform app.emit_acta(v_inc.code, 'Provisional', v_user.id);
   perform app.notify(v_inc.reported_by, v_inc.code, 'Tu incidencia fue resuelta',
                      format('%s: %s', v_inc.code, v_inc.title), v_user.id);
   perform app.notify_managers(v_inc.code, 'Incidencia lista para cierre',
@@ -794,7 +800,8 @@ begin
     coalesce(nullif(trim(coalesce(p_observations, '')), ''), 'Incidencia cerrada tras confirmar la resolución.'),
     null, null, v_user.id);
   perform app.log(v_user, 'Cierre', 'Cierre', v_inc.code, 'Resuelto → Cerrado.');
-  perform app.notify(v_inc.reported_by, v_inc.code, 'Tu incidencia fue cerrada',
+  perform app.emit_acta(v_inc.code, 'Definitiva', v_user.id, 'Reemplazada por el acta definitiva tras el cierre.');
+  perform app.notify(v_inc.reported_by, v_inc.code, 'Tu incidencia fue cerrada: el acta de resolución está disponible',
                      format('%s: %s', v_inc.code, v_inc.title), v_user.id);
   return jsonb_build_object('code', v_inc.code, 'status', 'Cerrado');
 end;
@@ -1240,6 +1247,248 @@ end;
 $$;
 
 -- =====================================================================
+-- Actas de resolución (RN-011)
+-- =====================================================================
+
+-- DNI parcialmente oculto para documentos impresos: 70****07
+create or replace function app.mask_dni(p_dni text) returns text
+language sql immutable as $$
+  select case when p_dni is null then null else left(p_dni, 2) || '****' || right(p_dni, 2) end;
+$$;
+
+create or replace function app.person_json(p_id uuid) returns jsonb
+language sql stable set search_path = app, extensions, pg_temp as $$
+  select case when u.id is null then null else jsonb_build_object(
+    'fullName', u.nombres || ' ' || u.apellidos, 'role', u.role, 'dni', app.mask_dni(u.dni)
+  ) end
+  from (select 1) d left join app.users u on u.id = p_id;
+$$;
+
+-- Contenido completo del acta: todo lo documentado sobre la incidencia
+create or replace function app.acta_content(p_code text, p_kind text) returns jsonb
+language plpgsql stable set search_path = app, extensions, pg_temp as $$
+declare
+  i app.incidents;
+  v_res app.resolutions;
+  v_clo app.closures;
+begin
+  select * into i from app.incidents where code = p_code;
+  select * into v_res from app.resolutions where incident_code = p_code and not superseded order by id desc limit 1;
+  select * into v_clo from app.closures where incident_code = p_code and not superseded order by id desc limit 1;
+
+  return jsonb_build_object(
+    'kind', p_kind,
+    'incident', jsonb_build_object(
+      'code', i.code, 'title', i.title, 'description', i.description,
+      'category', i.category, 'priority', i.priority, 'status', i.status,
+      'incidentDate', i.incident_date, 'location', i.location,
+      'involvedPeople', i.involved_people, 'observations', i.observations,
+      'registeredAt', i.registered_at),
+    'reporter', app.person_json(i.reported_by),
+    'responsible', app.person_json(i.responsible_id),
+    'followUps', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'kind', f.kind, 'previousStatus', f.previous_status, 'newStatus', f.new_status,
+        'observation', f.observation, 'reason', f.reason,
+        'responsible', app.person_json(f.responsible_id),
+        'user', app.person_json(f.user_id), 'createdAt', f.created_at
+      ) order by f.created_at, f.id)
+      from app.follow_ups f where f.incident_code = p_code), '[]'::jsonb),
+    'evidences', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'fileName', e.file_name, 'mimeType', e.mime_type, 'sizeBytes', e.size_bytes,
+        'evidenceType', e.evidence_type, 'description', e.description, 'status', e.status,
+        'voidReason', e.void_reason, 'voidedAt', e.voided_at,
+        'uploadedBy', app.person_json(e.uploaded_by), 'uploadedAt', e.uploaded_at
+      ) order by e.uploaded_at, e.id)
+      from app.evidences e where e.incident_code = p_code and e.status <> 'Pendiente'), '[]'::jsonb),
+    'resolution', case when v_res.id is null then null else jsonb_build_object(
+      'summary', v_res.summary, 'actionsTaken', v_res.actions_taken, 'result', v_res.result,
+      'observations', v_res.observations, 'resolutionDate', v_res.resolution_date,
+      'registeredBy', app.person_json(v_res.registered_by), 'registeredAt', v_res.registered_at) end,
+    'closure', case when v_clo.id is null then null else jsonb_build_object(
+      'observations', v_clo.observations, 'closedBy', app.person_json(v_clo.closed_by),
+      'closedAt', v_clo.closed_at) end,
+    'metrics', jsonb_build_object(
+      'hoursToResolve', case when v_res.id is null then null
+        else round(extract(epoch from (v_res.registered_at - i.registered_at)) / 3600.0, 1) end,
+      'hoursToClose', case when v_clo.id is null then null
+        else round(extract(epoch from (v_clo.closed_at - i.registered_at)) / 3600.0, 1) end)
+  );
+end;
+$$;
+
+-- Emite una nueva acta y marca como reemplazadas las anteriores vigentes
+create or replace function app.emit_acta(
+  p_code text, p_kind text, p_user uuid, p_reason text default null, p_at timestamptz default now()
+) returns app.actas
+language plpgsql set search_path = app, extensions, pg_temp as $$
+declare
+  v_seq integer;
+  v_content jsonb := app.acta_content(p_code, p_kind);
+  v_hash text;
+  v_acta app.actas;
+  v_user app.users;
+begin
+  update app.actas
+  set status = 'Reemplazada', replaced_at = p_at,
+      replaced_reason = coalesce(p_reason, 'Reemplazada por una nueva versión del acta.')
+  where incident_code = p_code and status = 'Vigente';
+
+  select coalesce(max(seq), 0) + 1 into v_seq from app.actas where incident_code = p_code;
+  v_hash := encode(extensions.digest(v_content::text, 'sha256'), 'hex');
+
+  insert into app.actas (number, incident_code, seq, kind, content, content_hash, verification_code, issued_by, issued_at)
+  values (
+    'ACT-' || substr(p_code, 4) || '-' || lpad(v_seq::text, 2, '0'),
+    p_code, v_seq, p_kind, v_content, v_hash,
+    -- Código de verificación: 16 caracteres derivados de la huella + aleatorio (no adivinable)
+    upper(regexp_replace(substr(encode(extensions.digest(v_hash || encode(extensions.gen_random_bytes(16), 'hex'), 'sha256'), 'hex'), 1, 16),
+                         '(.{4})(?!$)', '\1-', 'g')),
+    p_user, p_at)
+  returning * into v_acta;
+
+  select * into v_user from app.users where id = p_user;
+  perform app.log(v_user, 'Emisión de acta', 'Actas', p_code,
+    format('Acta %s (%s) emitida. Huella SHA-256: %s…', v_acta.number, p_kind, left(v_hash, 16)));
+  return v_acta;
+end;
+$$;
+
+-- Marca las actas vigentes como reemplazadas (reapertura)
+create or replace function app.replace_actas(p_code text, p_reason text) returns void
+language plpgsql set search_path = app, extensions, pg_temp as $$
+begin
+  update app.actas set status = 'Reemplazada', replaced_at = now(), replaced_reason = p_reason
+  where incident_code = p_code and status = 'Vigente';
+end;
+$$;
+
+create or replace function app.acta_meta_json(a app.actas) returns jsonb
+language sql stable set search_path = app, extensions, pg_temp as $$
+  select jsonb_build_object(
+    'number', a.number, 'seq', a.seq, 'kind', a.kind, 'status', a.status,
+    'issuedAt', a.issued_at, 'issuedBy', app.person_json(a.issued_by),
+    'replacedAt', a.replaced_at, 'replacedReason', a.replaced_reason,
+    'verificationCode', a.verification_code);
+$$;
+
+-- Versión resumida para el Estudiante: sin observaciones internas ni nombres de terceros
+create or replace function app.acta_summary_content(c jsonb) returns jsonb
+language sql immutable as $$
+  select c
+    || jsonb_build_object('incident', (c -> 'incident') - 'involvedPeople' - 'observations')
+    || jsonb_build_object('followUps', coalesce((
+         select jsonb_agg(jsonb_build_object(
+           'kind', f -> 'kind', 'previousStatus', f -> 'previousStatus', 'newStatus', f -> 'newStatus',
+           'createdAt', f -> 'createdAt', 'user', jsonb_build_object('role', f -> 'user' -> 'role')))
+         from jsonb_array_elements(c -> 'followUps') f), '[]'::jsonb))
+    || jsonb_build_object('evidences', coalesce((
+         select jsonb_agg(jsonb_build_object(
+           'fileName', e -> 'fileName', 'evidenceType', e -> 'evidenceType', 'status', e -> 'status',
+           'uploadedAt', e -> 'uploadedAt'))
+         from jsonb_array_elements(c -> 'evidences') e), '[]'::jsonb))
+    || jsonb_build_object('resolution', case when c -> 'resolution' = 'null'::jsonb then 'null'::jsonb
+         else (c -> 'resolution') - 'observations' end)
+    || jsonb_build_object('closure', case when c -> 'closure' = 'null'::jsonb then 'null'::jsonb
+         else (c -> 'closure') - 'observations' end);
+$$;
+
+create or replace function public.get_acta(p_token text, p_number text) returns jsonb
+language plpgsql security definer set search_path = app, extensions, pg_temp as $$
+declare
+  v_user app.users := app.session_user(p_token);
+  v_acta app.actas;
+  v_summary boolean;
+begin
+  select * into v_acta from app.actas where number = upper(trim(coalesce(p_number, '')));
+  if not found then
+    perform app.not_found('No encontramos el acta solicitada o no tienes acceso a ella.');
+  end if;
+  perform app.get_incident_for(v_user, v_acta.incident_code); -- valida acceso (RN-010)
+
+  v_summary := v_user.role = 'Estudiante';
+  perform app.log(v_user, 'Consulta de acta', 'Actas', v_acta.incident_code,
+    format('Consultó el acta %s (%s).', v_acta.number, case when v_summary then 'versión resumida' else 'versión completa' end));
+
+  return app.acta_meta_json(v_acta) || jsonb_build_object(
+    'incidentCode', v_acta.incident_code,
+    'contentHash', v_acta.content_hash,
+    'version', case when v_summary then 'Resumida' else 'Completa' end,
+    'content', case when v_summary then app.acta_summary_content(v_acta.content) else v_acta.content end);
+end;
+$$;
+
+-- Verificación pública (sin sesión): confirma que un acta impresa es auténtica, sin exponer datos personales
+create or replace function public.verify_acta(p_code text) returns jsonb
+language plpgsql security definer set search_path = app, extensions, pg_temp as $$
+declare
+  v_norm text := upper(regexp_replace(coalesce(p_code, ''), '[^0-9A-Fa-f]', '', 'g'));
+  v_acta app.actas;
+  v_newer text;
+begin
+  if length(v_norm) <> 16 then
+    return jsonb_build_object('valid', false, 'message', 'El código debe tener 16 caracteres (por ejemplo 1A2B-3C4D-5E6F-7A8B).');
+  end if;
+  select * into v_acta from app.actas
+  where verification_code = regexp_replace(v_norm, '(.{4})(?!$)', '\1-', 'g');
+  if not found then
+    return jsonb_build_object('valid', false, 'message', 'No existe un acta con ese código de verificación.');
+  end if;
+  select number into v_newer from app.actas
+  where incident_code = v_acta.incident_code and status = 'Vigente' and number <> v_acta.number;
+
+  insert into app.audit_logs (user_label, action, module, entity_id, description)
+  values ('Verificación pública', 'Verificación de acta', 'Actas', v_acta.incident_code,
+          format('Se verificó el acta %s.', v_acta.number));
+
+  return jsonb_build_object(
+    'valid', true,
+    'number', v_acta.number,
+    'incidentCode', v_acta.incident_code,
+    'kind', v_acta.kind,
+    'status', v_acta.status,
+    'issuedAt', v_acta.issued_at,
+    'category', v_acta.content -> 'incident' ->> 'category',
+    'resolutionDate', v_acta.content -> 'resolution' ->> 'resolutionDate',
+    'closedAt', v_acta.content -> 'closure' ->> 'closedAt',
+    'replacedAt', v_acta.replaced_at,
+    'replacedReason', v_acta.replaced_reason,
+    'currentNumber', v_newer,
+    'hashPrefix', left(v_acta.content_hash, 16));
+end;
+$$;
+
+-- Genera las actas que falten para incidencias ya resueltas o cerradas (instalaciones existentes y datos demo)
+create or replace function app.backfill_actas() returns integer
+language plpgsql set search_path = app, extensions, pg_temp as $$
+declare
+  r record;
+  v_count integer := 0;
+begin
+  for r in
+    select i.code, i.status, res.registered_by, res.registered_at, clo.closed_by, clo.closed_at
+    from app.incidents i
+    join lateral (select * from app.resolutions x where x.incident_code = i.code and not x.superseded
+                  order by x.id desc limit 1) res on true
+    left join lateral (select * from app.closures x where x.incident_code = i.code and not x.superseded
+                       order by x.id desc limit 1) clo on true
+    where i.status in ('Resuelto', 'Cerrado')
+      and not exists (select 1 from app.actas a where a.incident_code = i.code)
+    order by i.code
+  loop
+    perform app.emit_acta(r.code, 'Provisional', r.registered_by, null, r.registered_at);
+    v_count := v_count + 1;
+    if r.status = 'Cerrado' and r.closed_by is not null then
+      perform app.emit_acta(r.code, 'Definitiva', r.closed_by, 'Reemplazada por el acta definitiva tras el cierre.', r.closed_at);
+      v_count := v_count + 1;
+    end if;
+  end loop;
+  return v_count;
+end;
+$$;
+
+-- =====================================================================
 -- Permisos de ejecución: solo las RPC públicas son invocables
 -- =====================================================================
 do $$
@@ -1268,7 +1517,8 @@ begin
     'resolve_incident', 'close_incident', 'list_assignable_users',
     'evidence_begin', 'evidence_chunk', 'evidence_finish', 'evidence_chunk_get', 'evidence_void',
     'list_users', 'create_user', 'update_user', 'set_user_status', 'reset_user_password',
-    'list_audit', 'list_notifications', 'mark_notifications_read'
+    'list_audit', 'list_notifications', 'mark_notifications_read',
+    'get_acta', 'verify_acta'
   ] loop
     for r in
       select p.oid::regprocedure as sig
@@ -1286,3 +1536,6 @@ begin
   end loop;
 end;
 $$;
+
+-- Actas faltantes de incidencias ya resueltas o cerradas (idempotente)
+select app.backfill_actas();

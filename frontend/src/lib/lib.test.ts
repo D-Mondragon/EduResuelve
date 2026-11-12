@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { IncidentAction, IncidentSummary } from '../types/incident'
+import { followUpEvent, formatDuration, institutionName, personLabel, verifyUrl } from './acta'
 import { toCsv } from './csv'
 import { base64ToBytes, bytesToBase64, detectMime, MAX_FILE_BYTES, prepareFile, splitIntoChunks } from './files'
 import { formatBytes, formatDate, formatDateTime, todayInLima } from './format'
@@ -131,5 +132,25 @@ describe('Permisos en la interfaz (RN-010)', () => {
     expect(nextStep(incident(['resolve']))?.to).toBe('/incidencias/ER-2026-0001/resolucion')
     expect(nextStep(incident(['reassign', 'start']))?.label).toBe('Reasignar responsable')
     expect(nextStep(incident(['observe', 'evidence']))).toBeNull()
+  })
+})
+
+describe('Acta de resolución (RN-011)', () => {
+  it('CP-UI-19: expresa la duración de la atención en días y horas', () => {
+    expect(formatDuration(null)).toBe('—')
+    expect(formatDuration(0.4)).toBe('menos de 1 h')
+    expect(formatDuration(18)).toBe('18 h')
+    expect(formatDuration(24)).toBe('1 día')
+    expect(formatDuration(73)).toBe('3 días y 1 h')
+  })
+
+  it('CP-UI-20: describe los movimientos de la cronología y arma el enlace de verificación', () => {
+    const base = { createdAt: '2026-09-20T10:00:00Z', user: null }
+    expect(followUpEvent({ ...base, kind: 'Registro', previousStatus: null, newStatus: 'Nuevo' })).toBe('Registro de la incidencia')
+    expect(followUpEvent({ ...base, kind: 'Cambio de estado', previousStatus: 'Resuelto', newStatus: 'Cerrado' })).toBe('Resuelto → Cerrado')
+    expect(personLabel({ fullName: 'Ana Pérez', role: 'Docente' })).toBe('Ana Pérez (Docente)')
+    expect(personLabel({ role: 'Estudiante' })).toBe('Estudiante')
+    expect(verifyUrl('1A2B-3C4D-5E6F-7A8B', 'https://app.test')).toBe('https://app.test/verificar?codigo=1A2B-3C4D-5E6F-7A8B')
+    expect(institutionName()).toBeTruthy()
   })
 })

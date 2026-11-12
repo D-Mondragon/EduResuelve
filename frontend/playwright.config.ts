@@ -7,7 +7,8 @@ export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: false,
   workers: 1,
-  retries: 0,
+  // En CI se permite 1 reintento: una prueba que pasa al reintentar queda marcada como "flaky" en el informe
+  retries: process.env.CI ? 1 : 0,
   timeout: 60_000,
   // En CI, el reporter "github" publica cada falla como anotación visible en el run
   reporter: process.env.CI

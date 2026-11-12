@@ -188,6 +188,50 @@ drop trigger if exists follow_ups_immutable on app.follow_ups;
 create trigger follow_ups_immutable before update or delete on app.follow_ups
   for each row execute function app.forbid_mutation();
 
+-- ---------------------------------------------------------------------
+-- Actas de resolución (RN-011)
+-- Copia fija de todo lo documentado al resolver (Provisional) y al cerrar
+-- (Definitiva). El contenido y su huella SHA-256 no se pueden modificar;
+-- solo se permite marcar un acta como "Reemplazada" (reapertura o nueva versión).
+-- ---------------------------------------------------------------------
+create table if not exists app.actas (
+  number            text primary key check (number ~ '^ACT-[0-9]{4}-[0-9]{4,}-[0-9]{2}$'),
+  incident_code     text not null references app.incidents (code),
+  seq               integer not null check (seq > 0),
+  kind              text not null check (kind in ('Provisional', 'Definitiva')),
+  status            text not null default 'Vigente' check (status in ('Vigente', 'Reemplazada')),
+  content           jsonb not null,
+  content_hash      text not null,
+  verification_code text not null unique,
+  issued_by         uuid not null references app.users (id),
+  issued_at         timestamptz not null default now(),
+  replaced_at       timestamptz,
+  replaced_reason   text,
+  unique (incident_code, seq)
+);
+create index if not exists actas_incident_idx on app.actas (incident_code, seq);
+
+create or replace function app.actas_guard() returns trigger
+language plpgsql as $$
+begin
+  if tg_op = 'DELETE'
+     or old.status <> 'Vigente' or new.status <> 'Reemplazada'
+     or (new.number, new.incident_code, new.seq, new.kind, new.content, new.content_hash,
+         new.verification_code, new.issued_by, new.issued_at)
+        is distinct from
+        (old.number, old.incident_code, old.seq, old.kind, old.content, old.content_hash,
+         old.verification_code, old.issued_by, old.issued_at) then
+    raise exception 'El acta % es inmutable (RN-011). Solo puede marcarse como reemplazada.', old.number
+      using errcode = 'PT403';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists actas_immutable on app.actas;
+create trigger actas_immutable before update or delete on app.actas
+  for each row execute function app.actas_guard();
+
 -- Defensa en profundidad: RLS activo y sin políticas en todas las tablas.
 alter table app.users enable row level security;
 alter table app.sessions enable row level security;
@@ -200,3 +244,4 @@ alter table app.evidences enable row level security;
 alter table app.evidence_chunks enable row level security;
 alter table app.notifications enable row level security;
 alter table app.audit_logs enable row level security;
+alter table app.actas enable row level security;

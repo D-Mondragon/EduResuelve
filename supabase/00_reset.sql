@@ -18,7 +18,8 @@ begin
       'resolve_incident', 'close_incident', 'list_assignable_users',
       'evidence_begin', 'evidence_chunk', 'evidence_finish', 'evidence_chunk_get', 'evidence_void',
       'list_users', 'create_user', 'update_user', 'set_user_status', 'reset_user_password',
-      'list_audit', 'list_notifications', 'mark_notifications_read')
+      'list_audit', 'list_notifications', 'mark_notifications_read',
+      'get_acta', 'verify_acta')
   loop
     execute format('drop function if exists %s cascade', r.sig);
   end loop;

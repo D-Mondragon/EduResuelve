@@ -150,8 +150,12 @@ export function PageHeader({
   )
 }
 
-export function Card({ className, children }: { className?: string; children: ReactNode }) {
-  return <section className={cn('rounded-xl border border-line bg-surface shadow-sm', className)}>{children}</section>
+export function Card({ className, children, label }: { className?: string; children: ReactNode; label?: string }) {
+  return (
+    <section aria-label={label} className={cn('rounded-xl border border-line bg-surface shadow-sm', className)}>
+      {children}
+    </section>
+  )
 }
 
 export function CardHeader({

@@ -119,3 +119,6 @@ select f.created_at, u.id, u.nombres || ' ' || u.apellidos, u.dni,
 from app.follow_ups f
 join app.users u on u.id = f.user_id
 where not exists (select 1 from app.audit_logs);
+
+-- Actas de resolución de las incidencias demo resueltas o cerradas (RN-011)
+select app.backfill_actas();

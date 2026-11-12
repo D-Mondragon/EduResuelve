@@ -42,6 +42,7 @@ En la misma pantalla, despliega **Environment Variables** y agrega:
 | `VITE_SUPABASE_URL` | `https://TU-PROYECTO.supabase.co` | ✅ |
 | `VITE_SUPABASE_ANON_KEY` | tu **publishable key** (`sb_publishable_…`) o **anon key** (`eyJ…`) | ✅ |
 | `VITE_SHOW_DEMO_USERS` | `true` para mostrar el panel de usuarios demo en el login; `false` para ocultarlo | Opcional (por defecto se muestra) |
+| `VITE_INSTITUTION_NAME` | Nombre que aparece en el encabezado de las actas de resolución, p. ej. `I.E. San Martín` | Opcional (por defecto "Institución Educativa") |
 
 Marca los entornos **Production**, **Preview** y **Development**.
 
@@ -69,6 +70,9 @@ Abre la URL y comprueba:
 - [ ] Desde el celular: el menú ☰ abre la navegación y no hay desplazamiento horizontal.
 - [ ] Subes una imagen como evidencia y la puedes ver/descargar.
 - [ ] Cierras sesión e ingresas como Estudiante (`70000001`): solo ves "Mis incidencias".
+- [ ] Como Administrador abres `ER-2026-0004` → **Ver acta** → **Descargar PDF** genera el acta.
+- [ ] Abres `/verificar` (sin sesión), pegas el código del pie del acta y dice **Acta auténtica y vigente**.
+  Esta página es pública: recargar `/verificar?codigo=…` tampoco debe dar 404.
 
 ---
 

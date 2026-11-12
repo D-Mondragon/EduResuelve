@@ -61,8 +61,14 @@ body {
 }
 
 @media print {
+  @page {
+    size: A4;
+    margin: 14mm 14mm 16mm;
+  }
   body {
     background: #fff;
     color: #000;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }

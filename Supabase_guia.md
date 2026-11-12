@@ -63,6 +63,7 @@ En una nueva consulta del SQL Editor ejecuta:
 select count(*) as usuarios from app.users;          -- debe dar 8
 select code, status from app.incidents order by code; -- 5 incidencias
 select public.login('70000007', 'EduResuelve2026') ->> 'token' is not null as login_ok; -- true
+select number, kind, status from app.actas order by number; -- 3 actas (0004-01, 0004-02, 0005-01)
 ```
 
 ---
@@ -173,9 +174,14 @@ Contraseña de todos: **`EduResuelve2026`**
 ### Reiniciar los datos de demostración
 SQL Editor → ejecutar `00_reset.sql`, luego `01_schema.sql`, `02_functions.sql` y `03_seed.sql`.
 
-### Actualizar la lógica tras un cambio en el repositorio
-Si solo cambió `02_functions.sql`, basta con volver a ejecutarlo (usa `create or replace`, no borra datos).
-Si cambió `01_schema.sql`, consulta antes el cambio: puede requerir reinstalar.
+### Actualizar tras un cambio en el repositorio (sin perder datos)
+Vuelve a ejecutar, en este orden, **`01_schema.sql`** y luego **`02_functions.sql`**.
+Ambos se pueden ejecutar varias veces: solo crean lo que falta (tablas nuevas) y reemplazan las funciones;
+**no borran datos**. No ejecutes `00_reset.sql` ni `03_seed.sql` para actualizar.
+
+> Ejemplo: la versión con **actas de resolución (RN-011)** agrega la tabla `app.actas`. Al ejecutar 01 y 02,
+> se generan automáticamente las actas de las incidencias que ya estaban resueltas o cerradas.
+> Compruébalo con: `select number, kind, status from app.actas order by number;`
 
 ### Restablecer la contraseña de un administrador bloqueado desde el SQL Editor
 ```sql
