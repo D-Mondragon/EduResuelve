@@ -232,6 +232,28 @@ drop trigger if exists actas_immutable on app.actas;
 create trigger actas_immutable before update or delete on app.actas
   for each row execute function app.actas_guard();
 
+-- ---------------------------------------------------------------------
+-- Encuesta de satisfacción (RN-012)
+-- La responde quien registró la incidencia tras su cierre; una por cierre.
+-- Las respuestas no se modifican ni se borran.
+-- ---------------------------------------------------------------------
+create table if not exists app.surveys (
+  id            bigserial primary key,
+  incident_code text not null references app.incidents (code),
+  closure_id    bigint not null unique references app.closures (id),
+  user_id       uuid not null references app.users (id),
+  rating        smallint not null check (rating between 1 and 5),
+  resolved      text not null check (resolved in ('Sí', 'Parcialmente', 'No')),
+  speed_rating  smallint not null check (speed_rating between 1 and 5),
+  comment       text not null default '' check (length(comment) <= 500),
+  created_at    timestamptz not null default now()
+);
+create index if not exists surveys_incident_idx on app.surveys (incident_code);
+
+drop trigger if exists surveys_immutable on app.surveys;
+create trigger surveys_immutable before update or delete on app.surveys
+  for each row execute function app.forbid_mutation();
+
 -- Defensa en profundidad: RLS activo y sin políticas en todas las tablas.
 alter table app.users enable row level security;
 alter table app.sessions enable row level security;
@@ -245,3 +267,4 @@ alter table app.evidence_chunks enable row level security;
 alter table app.notifications enable row level security;
 alter table app.audit_logs enable row level security;
 alter table app.actas enable row level security;
+alter table app.surveys enable row level security;

@@ -51,6 +51,13 @@ export function nextStep(incident: IncidentSummary): NextStep | null {
   if (can(incident, 'close')) {
     return { label: 'Cerrar incidencia', description: 'La resolución está registrada. Verifícala y cierra el caso.', to: `${base}/cierre` }
   }
+  if (can(incident, 'survey')) {
+    return {
+      label: 'Evaluar la atención',
+      description: 'Tu incidencia fue cerrada. Cuéntanos en un minuto cómo te atendieron.',
+      to: `${base}/encuesta`,
+    }
+  }
   if (can(incident, 'reopen')) {
     return { label: 'Reabrir incidencia', description: 'Solo si existe un motivo justificado.', to: `${base}/seguimiento?accion=reopen` }
   }

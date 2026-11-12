@@ -40,6 +40,7 @@ export type IncidentAction =
   | 'reopen'
   | 'observe'
   | 'evidence'
+  | 'survey'
 
 export type TransitionAction = 'review' | 'assign' | 'start' | 'discard' | 'reopen'
 
@@ -125,6 +126,32 @@ export interface IncidentDetail extends IncidentSummary {
   closure: Closure | null
   /** Actas de resolución emitidas, de la más reciente a la más antigua (RN-011). */
   actas: ActaMeta[]
+  /** Encuesta del cierre vigente (RN-012); null si no corresponde o no puedes verla. */
+  survey: SurveyInfo | null
+}
+
+export const surveyResolvedOptions = ['Sí', 'Parcialmente', 'No'] as const
+export type SurveyResolved = (typeof surveyResolvedOptions)[number]
+
+export interface SurveyResponse {
+  rating: number
+  resolved: SurveyResolved
+  speedRating: number
+  comment: string
+  createdAt: string
+  user: UserRef | null
+}
+
+export interface SurveyInfo {
+  status: 'Pendiente' | 'Respondida' | 'No aplica'
+  response: SurveyResponse | null
+}
+
+export interface SurveyFormData {
+  rating: number | null
+  resolved: SurveyResolved | ''
+  speedRating: number | null
+  comment: string
 }
 
 export interface IncidentFormData {

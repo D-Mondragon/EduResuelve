@@ -6,6 +6,7 @@ import {
   History,
   Info,
   Lock,
+  MessageSquareHeart,
   MessageSquarePlus,
   Paperclip,
   PencilLine,
@@ -17,6 +18,8 @@ import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
 import { IncidentHeader } from '../components/incident/IncidentHeader'
 import { Timeline } from '../components/incident/Timeline'
+import { RatingStars } from '../components/survey/Rating'
+import { ratingLabels, speedLabels } from '../components/survey/labels'
 import { useToast } from '../components/toast/toastContext'
 import { Badge } from '../components/ui/Badge'
 import { Button, ButtonLink } from '../components/ui/Button'
@@ -27,7 +30,43 @@ import { api, ApiError } from '../lib/api'
 import { formatDate, formatDateTime, pluralize } from '../lib/format'
 import { can, nextStep } from '../lib/permissions'
 import type { ActaMeta } from '../types/acta'
-import type { IncidentDetail } from '../types/incident'
+import type { IncidentDetail, SurveyInfo } from '../types/incident'
+
+/** Resultado de la encuesta de satisfacción (RN-012): visible para quien registró y para los gestores. */
+function SurveyCard({ survey }: { survey: SurveyInfo }) {
+  const response = survey.response
+  return (
+    <Card label="Satisfacción con la atención">
+      <CardHeader
+        description={
+          response
+            ? `Respondida por ${response.user?.fullName ?? 'quien registró'} el ${formatDateTime(response.createdAt)}`
+            : survey.status === 'No aplica'
+              ? 'No aplica: quien registró también atendió o cerró la incidencia.'
+              : 'Pendiente de respuesta de quien registró la incidencia.'
+        }
+        icon={MessageSquareHeart}
+        title="Satisfacción con la atención"
+      />
+      {response && (
+        <dl className="grid grid-cols-1 gap-x-6 gap-y-4 p-5 sm:grid-cols-3 sm:p-6">
+          <DetailItem label="Satisfacción general">
+            <RatingStars label={ratingLabels[response.rating - 1]} value={response.rating} />
+          </DetailItem>
+          <DetailItem label="¿Se resolvió el problema?">{response.resolved}</DetailItem>
+          <DetailItem label="Rapidez">
+            <RatingStars label={speedLabels[response.speedRating - 1]} value={response.speedRating} />
+          </DetailItem>
+          {response.comment && (
+            <div className="sm:col-span-3">
+              <DetailItem label="Comentario">{response.comment}</DetailItem>
+            </div>
+          )}
+        </dl>
+      )}
+    </Card>
+  )
+}
 
 /** Acta de resolución vigente e historial de versiones (RN-011). */
 function ActaCard({ base, actas }: { base: string; actas: ActaMeta[] }) {
@@ -290,6 +329,8 @@ function IncidentDetailPage() {
       )}
 
       {incident.actas.length > 0 && <ActaCard actas={incident.actas} base={base} />}
+
+      {incident.survey && !can(incident, 'survey') && <SurveyCard survey={incident.survey} />}
 
       <Card>
         <CardHeader

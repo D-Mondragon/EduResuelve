@@ -179,7 +179,9 @@ Vuelve a ejecutar, en este orden, **`01_schema.sql`** y luego **`02_functions.sq
 Ambos se pueden ejecutar varias veces: solo crean lo que falta (tablas nuevas) y reemplazan las funciones;
 **no borran datos**. No ejecutes `00_reset.sql` ni `03_seed.sql` para actualizar.
 
-> Ejemplo: la versión con **actas de resolución (RN-011)** agrega la tabla `app.actas`. Al ejecutar 01 y 02,
+> Ejemplo: las actas de resolución (RN-011) agregaron la tabla `app.actas` y la encuesta de satisfacción
+> (RN-012) la tabla `app.surveys`.
+> Con las actas, por ejemplo, Al ejecutar 01 y 02,
 > se generan automáticamente las actas de las incidencias que ya estaban resueltas o cerradas.
 > Compruébalo con: `select number, kind, status from app.actas order by number;`
 
