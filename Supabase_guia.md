@@ -36,7 +36,8 @@ Archivos SQL (carpeta `supabase/` del repositorio):
    - **Organization:** la tuya.
    - **Project name:** `eduresuelve`
    - **Database Password:** genera una segura y **guárdala** (no la necesita la app, pero sí tú para administrar).
-   - **Region:** **South America (São Paulo)** — la más cercana a Perú (menor latencia).
+   - **Region:** **South America (São Paulo)** si está disponible; si el panel solo ofrece **East US (North Virginia)**, úsala sin problema.
+     ⚠️ La región **no se puede cambiar** después de crear el proyecto (habría que crear otro y volver a ejecutar los SQL).
    - **Plan:** Free.
 4. Clic en **Create new project** y espera 1–2 minutos a que termine de aprovisionarse.
 
@@ -205,7 +206,7 @@ está pausado, pulsa **Restore project** y espera 1–2 minutos.
 
 ## Checklist final
 
-- [ ] Proyecto creado en región São Paulo
+- [ ] Proyecto creado (región São Paulo o East US; no se puede cambiar luego)
 - [ ] `01_schema.sql`, `02_functions.sql` y `03_seed.sql` ejecutados sin errores
 - [ ] Verificación de la sección 2.1 correcta
 - [ ] Esquema `app` **no** expuesto en Data API
