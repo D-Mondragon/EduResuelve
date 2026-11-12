@@ -20,33 +20,33 @@ language sql immutable set search_path = app, extensions, pg_temp as $$
 $$;
 
 create or replace function app.full_name(u app.users) returns text
-language sql immutable as $$
+language sql immutable set search_path = app, extensions, pg_temp as $$
   select u.nombres || ' ' || u.apellidos;
 $$;
 
 create or replace function app.fail(p_message text) returns void
-language plpgsql as $$
+language plpgsql set search_path = app, extensions, pg_temp as $$
 begin
   raise exception '%', p_message using errcode = 'P0001';
 end;
 $$;
 
 create or replace function app.forbidden(p_message text default 'No tienes permiso para realizar esta acción.')
-returns void language plpgsql as $$
+returns void language plpgsql set search_path = app, extensions, pg_temp as $$
 begin
   raise exception '%', p_message using errcode = 'PT403';
 end;
 $$;
 
 create or replace function app.not_found(p_message text default 'Registro no encontrado.')
-returns void language plpgsql as $$
+returns void language plpgsql set search_path = app, extensions, pg_temp as $$
 begin
   raise exception '%', p_message using errcode = 'PT404';
 end;
 $$;
 
 create or replace function app.validate_password(p_password text) returns void
-language plpgsql as $$
+language plpgsql set search_path = app, extensions, pg_temp as $$
 begin
   if p_password is null or length(p_password) < 8
      or p_password !~ '[A-Za-z]' or p_password !~ '[0-9]' then
@@ -129,12 +129,12 @@ end;
 $$;
 
 create or replace function app.is_manager(u app.users) returns boolean
-language sql immutable as $$
+language sql immutable set search_path = app, extensions, pg_temp as $$
   select u.role in ('Orientador', 'Administrador');
 $$;
 
 create or replace function app.can_view(u app.users, i app.incidents) returns boolean
-language sql immutable as $$
+language sql immutable set search_path = app, extensions, pg_temp as $$
   select case
     when u.role in ('Orientador', 'Administrador') then true
     when u.role = 'Docente' then i.reported_by = u.id or i.responsible_id = u.id
@@ -190,7 +190,7 @@ end;
 $$;
 
 create or replace function app.user_json(u app.users) returns jsonb
-language sql immutable as $$
+language sql immutable set search_path = app, extensions, pg_temp as $$
   select jsonb_build_object(
     'id', u.id,
     'code', u.code,
@@ -268,7 +268,7 @@ end;
 $$;
 
 create or replace function app.text_field(p_data jsonb, p_key text) returns text
-language sql immutable as $$
+language sql immutable set search_path = app, extensions, pg_temp as $$
   select trim(coalesce(p_data ->> p_key, ''));
 $$;
 
@@ -1004,7 +1004,7 @@ $$;
 -- RPC: Usuarios (solo Administrador)
 -- =====================================================================
 create or replace function app.require_admin(u app.users) returns void
-language plpgsql as $$
+language plpgsql set search_path = app, extensions, pg_temp as $$
 begin
   if u.role <> 'Administrador' then
     perform app.forbidden('Solo un Administrador puede gestionar usuarios.');
@@ -1259,7 +1259,7 @@ $$;
 
 -- DNI parcialmente oculto para documentos impresos: 70****07
 create or replace function app.mask_dni(p_dni text) returns text
-language sql immutable as $$
+language sql immutable set search_path = app, extensions, pg_temp as $$
   select case when p_dni is null then null else left(p_dni, 2) || '****' || right(p_dni, 2) end;
 $$;
 
@@ -1382,7 +1382,7 @@ $$;
 
 -- Versión resumida para el Estudiante: sin observaciones internas ni nombres de terceros
 create or replace function app.acta_summary_content(c jsonb) returns jsonb
-language sql immutable as $$
+language sql immutable set search_path = app, extensions, pg_temp as $$
   select c
     || jsonb_build_object('incident', (c -> 'incident') - 'involvedPeople' - 'observations')
     || jsonb_build_object('followUps', coalesce((
@@ -1558,7 +1558,7 @@ end;
 $$;
 
 create or replace function app.rating_field(p_data jsonb, p_key text) returns smallint
-language plpgsql immutable as $$
+language plpgsql immutable set search_path = app, extensions, pg_temp as $$
 begin
   return (p_data ->> p_key)::smallint;
 exception when others then

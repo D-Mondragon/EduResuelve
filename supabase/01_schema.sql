@@ -173,7 +173,7 @@ create index if not exists audit_created_idx on app.audit_logs (created_at desc)
 
 -- La auditoría y el historial no se modifican ni se borran (RN-009)
 create or replace function app.forbid_mutation() returns trigger
-language plpgsql as $$
+language plpgsql set search_path = app, extensions, pg_temp as $$
 begin
   raise exception 'El registro % es inmutable (RN-009).', tg_table_name
     using errcode = 'PT403';
@@ -212,7 +212,7 @@ create table if not exists app.actas (
 create index if not exists actas_incident_idx on app.actas (incident_code, seq);
 
 create or replace function app.actas_guard() returns trigger
-language plpgsql as $$
+language plpgsql set search_path = app, extensions, pg_temp as $$
 begin
   if tg_op = 'DELETE'
      or old.status <> 'Vigente' or new.status <> 'Reemplazada'
