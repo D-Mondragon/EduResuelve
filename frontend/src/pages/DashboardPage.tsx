@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   ListChecks,
   Lock,
+  MessageSquareHeart,
   UserCheck,
   type LucideIcon,
 } from 'lucide-react'
@@ -231,6 +232,38 @@ function ManagerDashboard({ incidents }: { incidents: IncidentSummary[] }) {
   )
 }
 
+/** Recordatorio de encuestas pendientes (RN-012) para quien registró incidencias ya cerradas. */
+function PendingSurveys({ incidents }: { incidents: IncidentSummary[] }) {
+  const pending = incidents.filter((i) => i.allowedActions.includes('survey'))
+  if (pending.length === 0) return null
+  const first = pending[0]
+  return (
+    <section
+      aria-label="Encuestas pendientes"
+      className="flex flex-col gap-4 rounded-xl border border-amber-200 bg-amber-50 p-5 sm:flex-row sm:items-center sm:justify-between dark:border-amber-400/30 dark:bg-amber-400/10"
+    >
+      <div className="flex items-start gap-3">
+        <MessageSquareHeart aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-amber-700 dark:text-amber-300" />
+        <div>
+          <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+            {pending.length === 1
+              ? 'Tienes 1 encuesta pendiente'
+              : `Tienes ${pending.length} encuestas pendientes`}
+          </p>
+          <p className="mt-0.5 text-sm text-amber-800 dark:text-amber-300/90">
+            {pending.length === 1
+              ? `Tu incidencia ${first.code} fue cerrada. Cuéntanos cómo te atendieron.`
+              : 'Algunas de tus incidencias fueron cerradas. Cuéntanos cómo te atendieron.'}
+          </p>
+        </div>
+      </div>
+      <ButtonLink className="shrink-0" icon={MessageSquareHeart} to={`/incidencias/${encodeURIComponent(first.code)}/encuesta`}>
+        Evaluar la atención
+      </ButtonLink>
+    </section>
+  )
+}
+
 function PersonalDashboard({ user, incidents }: { user: User; incidents: IncidentSummary[] }) {
   const assigned = incidents.filter(
     (i) => i.responsible?.id === user.id && ['Asignado', 'En atención'].includes(i.status),
@@ -331,10 +364,11 @@ function DashboardPage() {
         <LoadingState />
       ) : error && !data ? (
         <ErrorState error={error} onRetry={() => reload()} />
-      ) : manager ? (
-        <ManagerDashboard incidents={data ?? []} />
       ) : (
-        <PersonalDashboard incidents={data ?? []} user={user} />
+        <>
+          <PendingSurveys incidents={data ?? []} />
+          {manager ? <ManagerDashboard incidents={data ?? []} /> : <PersonalDashboard incidents={data ?? []} user={user} />}
+        </>
       )}
     </div>
   )

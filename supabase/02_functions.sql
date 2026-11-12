@@ -182,6 +182,9 @@ begin
   if i.status not in ('Cerrado', 'Descartado') then
     v := v || array['observe', 'evidence'];
   end if;
+  if app.survey_state(u, i) = 'Pendiente' then
+    v := v || 'survey'::text;
+  end if;
   return v;
 end;
 $$;
@@ -458,7 +461,8 @@ begin
     'actas', coalesce((
       select jsonb_agg(app.acta_meta_json(a) order by a.seq desc)
       from app.actas a where a.incident_code = v_inc.code
-    ), '[]'::jsonb)
+    ), '[]'::jsonb),
+    'survey', app.survey_json(v_user, v_inc)
   );
 end;
 $$;
@@ -801,8 +805,11 @@ begin
     null, null, v_user.id);
   perform app.log(v_user, 'Cierre', 'Cierre', v_inc.code, 'Resuelto → Cerrado.');
   perform app.emit_acta(v_inc.code, 'Definitiva', v_user.id, 'Reemplazada por el acta definitiva tras el cierre.');
-  perform app.notify(v_inc.reported_by, v_inc.code, 'Tu incidencia fue cerrada: el acta de resolución está disponible',
-                     format('%s: %s', v_inc.code, v_inc.title), v_user.id);
+  perform app.notify(v_inc.reported_by, v_inc.code,
+    case when v_inc.reported_by in (v_user.id, v_inc.responsible_id)
+         then 'Tu incidencia fue cerrada: el acta de resolución está disponible'
+         else 'Tu incidencia fue cerrada: revisa el acta y cuéntanos cómo fue la atención' end,
+    format('%s: %s', v_inc.code, v_inc.title), v_user.id);
   return jsonb_build_object('code', v_inc.code, 'status', 'Cerrado');
 end;
 $$;
@@ -1489,6 +1496,119 @@ end;
 $$;
 
 -- =====================================================================
+-- Encuesta de satisfacción (RN-012)
+-- =====================================================================
+
+-- Cierre vigente de la incidencia (el último no reemplazado)
+create or replace function app.current_closure(p_code text) returns app.closures
+language sql stable set search_path = app, extensions, pg_temp as $$
+  select * from app.closures where incident_code = p_code and not superseded order by id desc limit 1;
+$$;
+
+-- Estado de la encuesta del cierre vigente para el usuario:
+-- 'Pendiente' | 'Respondida' | 'No aplica' (atendió o cerró su propia incidencia) | null (no corresponde)
+create or replace function app.survey_state(u app.users, i app.incidents) returns text
+language plpgsql stable set search_path = app, extensions, pg_temp as $$
+declare
+  c app.closures;
+begin
+  if i.status <> 'Cerrado' then
+    return null;
+  end if;
+  c := app.current_closure(i.code);
+  if c.id is null then
+    return null;
+  end if;
+  if exists (select 1 from app.surveys s where s.closure_id = c.id) then
+    return 'Respondida';
+  end if;
+  if i.reported_by = i.responsible_id or i.reported_by = c.closed_by then
+    return 'No aplica';
+  end if;
+  if u.id = i.reported_by then
+    return 'Pendiente';
+  end if;
+  return 'Pendiente de respuesta';
+end;
+$$;
+
+create or replace function app.survey_response_json(s app.surveys) returns jsonb
+language sql stable set search_path = app, extensions, pg_temp as $$
+  select jsonb_build_object(
+    'rating', s.rating, 'resolved', s.resolved, 'speedRating', s.speed_rating,
+    'comment', s.comment, 'createdAt', s.created_at, 'user', app.user_ref(s.user_id));
+$$;
+
+-- Lo que ve cada usuario: quien registró y los gestores ven la respuesta; el resto, nada.
+create or replace function app.survey_json(u app.users, i app.incidents) returns jsonb
+language plpgsql stable set search_path = app, extensions, pg_temp as $$
+declare
+  v_state text := app.survey_state(u, i);
+  v_resp app.surveys;
+begin
+  if v_state is null or not (app.is_manager(u) or u.id = i.reported_by) then
+    return null;
+  end if;
+  select s.* into v_resp from app.surveys s
+  where s.closure_id = (app.current_closure(i.code)).id;
+  return jsonb_build_object(
+    'status', case when v_state = 'Pendiente de respuesta' then 'Pendiente' else v_state end,
+    'response', case when v_resp.id is null then null else app.survey_response_json(v_resp) end);
+end;
+$$;
+
+create or replace function app.rating_field(p_data jsonb, p_key text) returns smallint
+language plpgsql immutable as $$
+begin
+  return (p_data ->> p_key)::smallint;
+exception when others then
+  return null;
+end;
+$$;
+
+create or replace function public.submit_survey(p_token text, p_code text, p_data jsonb) returns jsonb
+language plpgsql security definer set search_path = app, extensions, pg_temp as $$
+declare
+  v_user app.users := app.session_user(p_token);
+  v_inc app.incidents := app.get_incident_for(v_user, p_code);
+  v_rating smallint := app.rating_field(p_data, 'rating');
+  v_speed smallint := app.rating_field(p_data, 'speedRating');
+  v_resolved text := app.text_field(p_data, 'resolved');
+  v_comment text := app.text_field(p_data, 'comment');
+  v_survey app.surveys;
+begin
+  perform app.require_action(v_user, v_inc, 'survey',
+    'Solo quien registró la incidencia puede responder la encuesta, una vez cerrada y una sola vez.');
+  if v_rating is null or v_rating not between 1 and 5 then
+    perform app.fail('Califica tu satisfacción general del 1 al 5.');
+  end if;
+  if v_resolved not in ('Sí', 'Parcialmente', 'No') then
+    perform app.fail('Indica si se resolvió tu problema.');
+  end if;
+  if v_speed is null or v_speed not between 1 and 5 then
+    perform app.fail('Califica la rapidez de la atención del 1 al 5.');
+  end if;
+  if length(v_comment) > 500 then
+    perform app.fail('El comentario admite como máximo 500 caracteres.');
+  end if;
+
+  insert into app.surveys (incident_code, closure_id, user_id, rating, resolved, speed_rating, comment)
+  values (v_inc.code, (app.current_closure(v_inc.code)).id, v_user.id, v_rating, v_resolved, v_speed, v_comment)
+  returning * into v_survey;
+
+  perform app.log(v_user, 'Respuesta de encuesta', 'Encuestas', v_inc.code,
+    format('Satisfacción %s/5, rapidez %s/5, ¿resuelto?: %s.', v_rating, v_speed, v_resolved));
+
+  -- Control de calidad: una atención mal evaluada se informa a los gestores para que actúen
+  if v_rating <= 2 or v_resolved = 'No' then
+    perform app.notify_managers(v_inc.code, 'Atención con baja satisfacción',
+      format('%s: satisfacción %s/5, ¿resuelto?: %s. Revisa el caso.', v_inc.code, v_rating, v_resolved), v_user.id);
+  end if;
+  return app.survey_response_json(v_survey);
+end;
+$$;
+
+-- =====================================================================
 -- Permisos de ejecución: solo las RPC públicas son invocables
 -- =====================================================================
 do $$
@@ -1518,7 +1638,7 @@ begin
     'evidence_begin', 'evidence_chunk', 'evidence_finish', 'evidence_chunk_get', 'evidence_void',
     'list_users', 'create_user', 'update_user', 'set_user_status', 'reset_user_password',
     'list_audit', 'list_notifications', 'mark_notifications_read',
-    'get_acta', 'verify_acta'
+    'get_acta', 'verify_acta', 'submit_survey'
   ] loop
     for r in
       select p.oid::regprocedure as sig

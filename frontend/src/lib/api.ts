@@ -5,6 +5,8 @@ import type {
   IncidentFormData,
   IncidentSummary,
   ResolutionFormData,
+  SurveyFormData,
+  SurveyResponse,
   TransitionAction,
 } from '../types/incident'
 import type { ManagedUser, User, UserFormData, UserRef, UserStatus } from '../types/user'
@@ -141,6 +143,10 @@ export const api = {
   evidenceFinish: (id: number) => authed<{ id: number; sizeBytes: number }>('evidence_finish', { p_id: id }),
   evidenceChunkGet: (id: number, idx: number) => authed<string>('evidence_chunk_get', { p_id: id, p_idx: idx }),
   evidenceVoid: (id: number, reason: string) => authed<{ id: number }>('evidence_void', { p_id: id, p_reason: reason }),
+
+  // Encuesta de satisfacción (RN-012)
+  submitSurvey: (code: string, data: SurveyFormData) =>
+    authed<SurveyResponse>('submit_survey', { p_code: code, p_data: data }),
 
   // Actas de resolución (RN-011)
   getActa: (number: string) => authed<Acta>('get_acta', { p_number: number }),

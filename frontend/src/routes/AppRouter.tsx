@@ -15,6 +15,7 @@ import IncidentEvidencePage from '../pages/IncidentEvidencePage'
 import IncidentFollowUpPage from '../pages/IncidentFollowUpPage'
 import IncidentFormPage from '../pages/IncidentFormPage'
 import IncidentResolutionPage from '../pages/IncidentResolutionPage'
+import IncidentSurveyPage from '../pages/IncidentSurveyPage'
 import IncidentsPage from '../pages/IncidentsPage'
 import LoginPage from '../pages/LoginPage'
 import NotFoundPage from '../pages/NotFoundPage'
@@ -81,6 +82,7 @@ export function AppRoutes() {
           <Route element={<IncidentResolutionPage />} path="/incidencias/:code/resolucion" />
           <Route element={<IncidentClosurePage />} path="/incidencias/:code/cierre" />
           <Route element={<ActaPage />} path="/incidencias/:code/acta/:number" />
+          <Route element={<IncidentSurveyPage />} path="/incidencias/:code/encuesta" />
           <Route
             element={
               <RequireRole roles={['Administrador']}>
