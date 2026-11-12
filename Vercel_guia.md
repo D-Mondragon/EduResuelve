@@ -42,6 +42,7 @@ En la misma pantalla, despliega **Environment Variables** y agrega:
 | `VITE_SUPABASE_URL` | `https://TU-PROYECTO.supabase.co` | ✅ |
 | `VITE_SUPABASE_ANON_KEY` | tu **publishable key** (`sb_publishable_…`) o **anon key** (`eyJ…`) | ✅ |
 | `VITE_SHOW_DEMO_USERS` | `true` para mostrar el panel de usuarios demo en el login; `false` para ocultarlo | Opcional (por defecto se muestra) |
+| `VITE_PERF_LOG` | `false` desactiva la medición anónima de tiempos de respuesta (no se recomienda: alimenta las métricas de calidad) | Opcional (por defecto activada) |
 | `VITE_INSTITUTION_NAME` | Nombre que aparece en el encabezado de las actas de resolución, p. ej. `I.E. San Martín` | Opcional (por defecto "Institución Educativa") |
 
 Marca los entornos **Production**, **Preview** y **Development**.

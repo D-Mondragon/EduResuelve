@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
-import { api, ApiError, getToken, setToken, UNAUTHORIZED_EVENT } from '../lib/api'
+import { api, ApiError, flushPerformance, getToken, setToken, UNAUTHORIZED_EVENT } from '../lib/api'
 import type { User } from '../types/user'
 import { AuthContext, type AuthContextValue } from './authContext'
 
@@ -57,7 +57,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
 
   const logout = useCallback(async () => {
-    // La llamada toma el token antes de borrarlo; si falla la red, la sesión local se elimina igual.
+    // Las llamadas toman el token antes de borrarlo; si falla la red, la sesión local se elimina igual.
+    void flushPerformance()
     const request = api.logout().catch(() => undefined)
     setToken(null)
     setUser(null)

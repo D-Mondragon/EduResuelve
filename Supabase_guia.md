@@ -180,7 +180,7 @@ Ambos se pueden ejecutar varias veces: solo crean lo que falta (tablas nuevas) y
 **no borran datos**. No ejecutes `00_reset.sql` ni `03_seed.sql` para actualizar.
 
 > Ejemplo: las actas de resolución (RN-011) agregaron la tabla `app.actas` y la encuesta de satisfacción
-> (RN-012) la tabla `app.surveys`.
+> (RN-012) la tabla `app.surveys`, y la medición de tiempos de respuesta (RNF-001) la tabla `app.perf_samples`.
 > Al ejecutar 01 y 02 se generan automáticamente las actas de las incidencias que ya estaban resueltas o
 > cerradas, y las incidencias cerradas quedan con su encuesta pendiente para quien las registró.
 > Compruébalo con: `select number, kind, status from app.actas order by number;`

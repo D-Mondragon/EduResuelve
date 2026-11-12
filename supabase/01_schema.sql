@@ -254,6 +254,22 @@ drop trigger if exists surveys_immutable on app.surveys;
 create trigger surveys_immutable before update or delete on app.surveys
   for each row execute function app.forbid_mutation();
 
+-- ---------------------------------------------------------------------
+-- Tiempos de respuesta (RNF-001: responder en menos de 3 s)
+-- Medidos en el navegador: lo que realmente espera la persona.
+-- Anónimos (solo rol y tipo de dispositivo); se conservan 90 días.
+-- ---------------------------------------------------------------------
+create table if not exists app.perf_samples (
+  id          bigserial primary key,
+  fn          text not null check (fn ~ '^[a-z_]{2,40}$'),
+  duration_ms integer not null check (duration_ms between 0 and 600000),
+  ok          boolean not null,
+  role        text not null,
+  device      text not null check (device in ('Escritorio', 'Móvil')),
+  created_at  timestamptz not null default now()
+);
+create index if not exists perf_samples_created_idx on app.perf_samples (created_at);
+
 -- Defensa en profundidad: RLS activo y sin políticas en todas las tablas.
 alter table app.users enable row level security;
 alter table app.sessions enable row level security;
@@ -268,3 +284,4 @@ alter table app.notifications enable row level security;
 alter table app.audit_logs enable row level security;
 alter table app.actas enable row level security;
 alter table app.surveys enable row level security;
+alter table app.perf_samples enable row level security;
