@@ -1,3 +1,4 @@
+import type { ActaMeta } from './acta'
 import type { UserRef } from './user'
 
 export const incidentStatuses = [
@@ -122,6 +123,8 @@ export interface IncidentDetail extends IncidentSummary {
   evidences: Evidence[]
   resolution: Resolution | null
   closure: Closure | null
+  /** Actas de resolución emitidas, de la más reciente a la más antigua (RN-011). */
+  actas: ActaMeta[]
 }
 
 export interface IncidentFormData {

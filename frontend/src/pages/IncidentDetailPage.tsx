@@ -1,6 +1,7 @@
 import {
   ArrowRight,
   CheckCircle2,
+  FileBadge,
   FileText,
   History,
   Info,
@@ -13,9 +14,11 @@ import {
   Workflow,
 } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
+import { Link } from 'react-router'
 import { IncidentHeader } from '../components/incident/IncidentHeader'
 import { Timeline } from '../components/incident/Timeline'
 import { useToast } from '../components/toast/toastContext'
+import { Badge } from '../components/ui/Badge'
 import { Button, ButtonLink } from '../components/ui/Button'
 import { Card, CardHeader, DetailItem, ErrorState, LoadingState } from '../components/ui/Feedback'
 import { Textarea } from '../components/ui/Field'
@@ -23,7 +26,77 @@ import { useIncident } from '../hooks/useIncident'
 import { api, ApiError } from '../lib/api'
 import { formatDate, formatDateTime, pluralize } from '../lib/format'
 import { can, nextStep } from '../lib/permissions'
+import type { ActaMeta } from '../types/acta'
 import type { IncidentDetail } from '../types/incident'
+
+/** Acta de resolución vigente e historial de versiones (RN-011). */
+function ActaCard({ base, actas }: { base: string; actas: ActaMeta[] }) {
+  const current = actas.find((acta) => acta.status === 'Vigente')
+  const previous = actas.filter((acta) => acta !== current)
+  const link = (acta: ActaMeta) => `${base}/acta/${encodeURIComponent(acta.number)}`
+
+  return (
+    <Card label="Acta de resolución">
+      <CardHeader
+        description="Documento que deja constancia de lo actuado y las medidas tomadas"
+        icon={FileBadge}
+        title="Acta de resolución"
+      />
+      <div className="space-y-4 p-5 sm:p-6">
+        {current ? (
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="flex flex-wrap items-center gap-2">
+                <span className="font-mono text-sm font-semibold text-ink">{current.number}</span>
+                <Badge
+                  className={
+                    current.kind === 'Definitiva'
+                      ? 'bg-emerald-50 text-emerald-800 ring-emerald-600/20 dark:bg-emerald-400/10 dark:text-emerald-300'
+                      : 'bg-amber-50 text-amber-800 ring-amber-600/20 dark:bg-amber-400/10 dark:text-amber-300'
+                  }
+                >
+                  {current.kind === 'Definitiva' ? 'Definitiva' : 'Provisional'}
+                </Badge>
+              </p>
+              <p className="mt-1 text-sm text-muted">
+                Emitida el {formatDateTime(current.issuedAt)}
+                {current.kind === 'Provisional' && ' · se reemplazará por la definitiva al cerrar la incidencia'}
+              </p>
+            </div>
+            <ButtonLink className="shrink-0" icon={FileBadge} to={link(current)}>
+              Ver acta
+            </ButtonLink>
+          </div>
+        ) : (
+          <p className="text-sm text-muted">
+            No hay un acta vigente: la incidencia fue reabierta. Se emitirá una nueva al volver a resolverla.
+          </p>
+        )}
+        {previous.length > 0 && (
+          <details className="group rounded-lg border border-line px-4 py-3">
+            <summary className="cursor-pointer text-sm font-medium text-ink-2">
+              Versiones anteriores ({previous.length})
+            </summary>
+            <ul className="mt-3 space-y-2">
+              {previous.map((acta) => (
+                <li className="flex flex-col gap-1 text-sm sm:flex-row sm:items-center sm:justify-between" key={acta.number}>
+                  <span className="min-w-0">
+                    <Link className="font-mono font-medium text-emerald-700 hover:underline dark:text-emerald-400" to={link(acta)}>
+                      {acta.number}
+                    </Link>{' '}
+                    <span className="text-muted">
+                      · {acta.kind} · reemplazada el {formatDateTime(acta.replacedAt)}
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+      </div>
+    </Card>
+  )
+}
 
 function ObservationForm({ incident, onSaved }: { incident: IncidentDetail; onSaved: () => void }) {
   const [text, setText] = useState('')
@@ -93,6 +166,7 @@ function IncidentDetailPage() {
   const base = `/incidencias/${encodeURIComponent(incident.code)}`
   const step = nextStep(incident)
   const activeEvidences = incident.evidences.filter((e) => e.status === 'Activa').length
+  const currentActa = incident.actas.find((acta) => acta.status === 'Vigente')
 
   return (
     <div className="space-y-6">
@@ -110,6 +184,11 @@ function IncidentDetailPage() {
             <ButtonLink icon={Workflow} to={`${base}/seguimiento`} variant="secondary">
               Seguimiento
             </ButtonLink>
+            {currentActa && (
+              <ButtonLink icon={FileBadge} to={`${base}/acta/${encodeURIComponent(currentActa.number)}`} variant="secondary">
+                Acta
+              </ButtonLink>
+            )}
           </>
         }
         incident={incident}
@@ -209,6 +288,8 @@ function IncidentDetailPage() {
           <p className="p-5 text-sm text-ink-2 sm:p-6">{incident.closure.observations || 'Sin observaciones de cierre.'}</p>
         </Card>
       )}
+
+      {incident.actas.length > 0 && <ActaCard actas={incident.actas} base={base} />}
 
       <Card>
         <CardHeader

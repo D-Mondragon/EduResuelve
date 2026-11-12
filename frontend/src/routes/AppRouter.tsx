@@ -5,6 +5,7 @@ import { AuthProvider } from '../auth/AuthProvider'
 import { LoadingState } from '../components/ui/Feedback'
 import { ToastProvider } from '../components/toast/ToastProvider'
 import MainLayout from '../layouts/MainLayout'
+import ActaPage from '../pages/ActaPage'
 import AuditPage from '../pages/AuditPage'
 import ChangePasswordPage from '../pages/ChangePasswordPage'
 import DashboardPage from '../pages/DashboardPage'
@@ -18,6 +19,7 @@ import IncidentsPage from '../pages/IncidentsPage'
 import LoginPage from '../pages/LoginPage'
 import NotFoundPage from '../pages/NotFoundPage'
 import UsersPage from '../pages/UsersPage'
+import VerifyActaPage from '../pages/VerifyActaPage'
 import type { UserRole } from '../types/user'
 
 /** Exige sesión iniciada; si la contraseña es temporal, obliga a cambiarla. */
@@ -64,6 +66,8 @@ export function AppRoutes() {
         }
         path="/login"
       />
+      {/* Pública: verificación de actas impresas (sin sesión) */}
+      <Route element={<VerifyActaPage />} path="/verificar" />
       <Route element={<RequireAuth />}>
         <Route element={<ChangePasswordPage />} path="/cambiar-contrasena" />
         <Route element={<MainLayout />}>
@@ -76,6 +80,7 @@ export function AppRoutes() {
           <Route element={<IncidentEvidencePage />} path="/incidencias/:code/evidencias" />
           <Route element={<IncidentResolutionPage />} path="/incidencias/:code/resolucion" />
           <Route element={<IncidentClosurePage />} path="/incidencias/:code/cierre" />
+          <Route element={<ActaPage />} path="/incidencias/:code/acta/:number" />
           <Route
             element={
               <RequireRole roles={['Administrador']}>

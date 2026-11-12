@@ -48,6 +48,8 @@ React (Vite)  ──fetch──▶  Supabase Data API (/rest/v1/rpc/*)  ──�
 | Atender / resolver | ❌ | si está asignado | si está asignado | ✅ |
 | Cerrar | ❌ | ❌ | ✅ | ✅ |
 | Reabrir | ❌ | ❌ | ❌ | ✅ |
+| Ver acta de resolución (RN-011) | versión resumida | ✅ | ✅ | ✅ |
+| Verificar un acta (`/verificar`) | público, sin sesión | | | |
 | Usuarios y auditoría | ❌ | ❌ | ❌ | ✅ |
 
 ## Pruebas
@@ -62,7 +64,12 @@ npm run lint && npm run build
 |---|---|---|
 | `tests/sql/auth.test.ts` | 10 | Login por DNI, mensajes genéricos, bloqueo tras 5 intentos, inactivos, tokens, cambio de clave, tablas no expuestas |
 | `tests/sql/workflow.test.ts` | 15 | RN-001 … RN-010, edición (D3), notificaciones, auditoría |
+| `tests/sql/actas.test.ts` | 10 | Actas (RN-011): emisión provisional/definitiva, reemplazo al reabrir, inmutabilidad y huella SHA-256, versión resumida, permisos, verificación pública |
 | `tests/sql/users-evidence.test.ts` | 15 | Gestión de usuarios, reasignación por desactivación (C4), evidencias (tipos, firma, límites, anulación) |
-| `src/lib/lib.test.ts` | 15 | Validaciones, zona horaria, compresión y partición de archivos, CSV, permisos |
+| `src/lib/lib.test.ts` | 17 | Validaciones, zona horaria, compresión y partición de archivos, CSV, permisos |
 | `src/components/components.test.tsx` | 3 | Accesibilidad de campos, modal y estados |
-| `tests/e2e/*.spec.ts` | 31 | Login, flujo completo por roles, usuarios, evidencias, auditoría, tema, responsive móvil |
+| `tests/e2e/*.spec.ts` | 37 | Login, flujo completo por roles, actas y verificación, usuarios, evidencias, auditoría, tema, responsive móvil |
+
+`npm run test:coverage` mide la cobertura del frontend (informe en `coverage/`). En cada `push` a `main`,
+GitHub Actions (`.github/workflows/calidad.yml`) ejecuta lint, build, todas las pruebas, la cobertura y la
+auditoría de dependencias.

@@ -1,3 +1,4 @@
+import type { Acta, ActaVerification } from '../types/acta'
 import type { AuditLog, NotificationList } from '../types/audit'
 import type {
   IncidentDetail,
@@ -140,6 +141,11 @@ export const api = {
   evidenceFinish: (id: number) => authed<{ id: number; sizeBytes: number }>('evidence_finish', { p_id: id }),
   evidenceChunkGet: (id: number, idx: number) => authed<string>('evidence_chunk_get', { p_id: id, p_idx: idx }),
   evidenceVoid: (id: number, reason: string) => authed<{ id: number }>('evidence_void', { p_id: id, p_reason: reason }),
+
+  // Actas de resolución (RN-011)
+  getActa: (number: string) => authed<Acta>('get_acta', { p_number: number }),
+  /** Verificación pública: no requiere sesión. */
+  verifyActa: (code: string) => rpc<ActaVerification>('verify_acta', { p_code: code }),
 
   // Usuarios
   listUsers: () => authed<ManagedUser[]>('list_users'),

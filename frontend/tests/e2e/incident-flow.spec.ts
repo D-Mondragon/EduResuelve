@@ -91,6 +91,10 @@ test.describe.serial('Flujo completo de una incidencia', () => {
     await page.getByRole('button', { name: 'Cerrar incidencia' }).click()
     await expect(page.getByText('Incidencia cerrada correctamente.')).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Cierre' })).toBeVisible()
+    // RN-011: el cierre emite el acta definitiva y la provisional queda como versión anterior
+    const acta = page.getByRole('region', { name: 'Acta de resolución' })
+    await expect(acta).toContainText('Definitiva')
+    await expect(acta).toContainText('Versiones anteriores (1)')
   })
 
   test('E2E-INC-07: solo el administrador reabre, con motivo y confirmación (RN-008)', async ({ page }) => {

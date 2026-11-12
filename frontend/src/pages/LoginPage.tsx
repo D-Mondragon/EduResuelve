@@ -1,6 +1,6 @@
 import { ChevronDown, Eye, EyeOff, IdCard, LockKeyhole, LogIn } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
-import { useLocation, useNavigate } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 import { useAuth } from '../auth/authContext'
 import { Logo } from '../components/Logo'
 import { ThemeToggle } from '../components/ThemeToggle'
@@ -154,6 +154,13 @@ function LoginPage() {
               ¿Olvidaste tu contraseña? Solicita al administrador que la restablezca.
             </p>
           </section>
+
+          <p className="mt-4 text-center text-sm text-muted">
+            ¿Tienes un acta de resolución impresa?{' '}
+            <Link className="font-medium text-emerald-700 hover:underline dark:text-emerald-400" to="/verificar">
+              Verifica su autenticidad
+            </Link>
+          </p>
 
           {showDemo && (
             <details className="group mt-4 rounded-xl border border-line bg-surface px-4 py-3 text-sm">
