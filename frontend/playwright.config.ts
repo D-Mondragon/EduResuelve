@@ -9,7 +9,10 @@ export default defineConfig({
   workers: 1,
   retries: 0,
   timeout: 60_000,
-  reporter: [['list'], ['html', { open: 'never' }]],
+  // En CI, el reporter "github" publica cada falla como anotación visible en el run
+  reporter: process.env.CI
+    ? [['github'], ['list'], ['html', { open: 'never' }]]
+    : [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: `http://localhost:${WEB_PORT}`,
     locale: 'es-PE',
