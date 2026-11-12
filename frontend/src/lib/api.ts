@@ -1,4 +1,5 @@
 import type { Acta, ActaVerification } from '../types/acta'
+import type { PerfStats } from '../types/quality'
 import type { AuditLog, NotificationList } from '../types/audit'
 import type {
   IncidentDetail,
@@ -10,6 +11,7 @@ import type {
   TransitionAction,
 } from '../types/incident'
 import type { ManagedUser, User, UserFormData, UserRef, UserStatus } from '../types/user'
+import { currentDevice, pageLoadMs, PerfBuffer, type PerfSample } from './perf'
 
 const TOKEN_KEY = 'eduresuelve.session'
 
@@ -57,25 +59,79 @@ function config() {
   return { url: url.replace(/\/$/, ''), key }
 }
 
+/* ---------------------------------------------------------------------------
+ * Medición de tiempos de respuesta (RNF-001). Se desactiva con VITE_PERF_LOG=false.
+ * ------------------------------------------------------------------------- */
+const perfEnabled = import.meta.env.VITE_PERF_LOG !== 'false'
+const PERF_FN = 'log_perf'
+
+const perf = new PerfBuffer(
+  (samples: PerfSample[]) =>
+    rpc(PERF_FN, { p_token: getToken() ?? '', p_samples: samples }, {
+      // Al cerrar u ocultar la pestaña, keepalive permite que el envío termine
+      keepalive: typeof document !== 'undefined' && document.visibilityState === 'hidden',
+    }),
+  { canSend: () => getToken() !== null },
+)
+
+function recordTiming(fn: string, startedAt: number, ok: boolean) {
+  if (!perfEnabled || fn === PERF_FN) return
+  perf.add({ fn, ms: performance.now() - startedAt, ok, device: currentDevice() })
+}
+
+/** Envía las mediciones pendientes (por ejemplo, antes de cerrar sesión). */
+export function flushPerformance() {
+  return perf.flush()
+}
+
+let perfStarted = false
+
+/** Inicia el envío periódico de mediciones y registra el tiempo de carga de la página. */
+export function startPerformanceReporting() {
+  if (!perfEnabled || perfStarted || typeof window === 'undefined') return
+  perfStarted = true
+  window.setInterval(() => void perf.flush(), 30_000)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') void perf.flush()
+  })
+  const recordLoad = () => {
+    // loadEventEnd se completa justo después del evento load
+    window.setTimeout(() => {
+      const ms = pageLoadMs()
+      if (ms !== null) perf.add({ fn: 'carga_pagina', ms, ok: true, device: currentDevice() })
+    }, 0)
+  }
+  if (document.readyState === 'complete') recordLoad()
+  else window.addEventListener('load', recordLoad, { once: true })
+}
+
 /** Llama a una función RPC de Supabase (PostgREST) con argumentos nombrados. */
-export async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Promise<T> {
+export async function rpc<T>(
+  fn: string,
+  args: Record<string, unknown> = {},
+  options: { keepalive?: boolean } = {},
+): Promise<T> {
   const { url, key } = config()
   const headers: Record<string, string> = { 'Content-Type': 'application/json', apikey: key }
   // Las claves "anon" heredadas son JWT; las nuevas "publishable" solo van en apikey.
   if (key.startsWith('eyJ')) headers.Authorization = `Bearer ${key}`
 
+  const startedAt = performance.now()
   let response: Response
   try {
     response = await fetch(`${url}/rest/v1/rpc/${fn}`, {
       method: 'POST',
       headers,
       body: JSON.stringify(args),
+      keepalive: options.keepalive,
     })
   } catch {
+    recordTiming(fn, startedAt, false)
     throw new ApiError('No se pudo conectar con el servidor. Revisa tu conexión a internet.', 0, 'NETWORK')
   }
 
   const text = await response.text()
+  recordTiming(fn, startedAt, response.ok)
   const body: unknown = text ? JSON.parse(text) : null
 
   if (!response.ok) {
@@ -161,6 +217,9 @@ export const api = {
     authed<User & { pendingReassignments: number }>('set_user_status', { p_id: id, p_status: status }),
   resetPassword: (id: string, password: string) =>
     authed<User>('reset_user_password', { p_id: id, p_new_password: password }),
+
+  // Métricas de calidad
+  perfStats: (days = 30) => authed<PerfStats>('perf_stats', { p_days: days }),
 
   // Auditoría y notificaciones
   listAudit: () => authed<AuditLog[]>('list_audit'),

@@ -68,10 +68,11 @@ npm run lint && npm run build
 | `tests/sql/workflow.test.ts` | 15 | RN-001 … RN-010, edición (D3), notificaciones, auditoría |
 | `tests/sql/actas.test.ts` | 10 | Actas (RN-011): emisión provisional/definitiva, reemplazo al reabrir, inmutabilidad y huella SHA-256, versión resumida, permisos, verificación pública |
 | `tests/sql/surveys.test.ts` | 9 | Encuesta (RN-012): quién y cuándo responde, validaciones, respuesta única e inmutable, visibilidad, alerta por baja satisfacción, nueva encuesta tras reabrir |
+| `tests/sql/perf.test.ts` | 6 | Tiempos de respuesta (RNF-001): mediciones anónimas, validación, límites, retención de 90 días, promedio/mediana/p95/% < 3 s, permisos |
 | `tests/sql/users-evidence.test.ts` | 15 | Gestión de usuarios, reasignación por desactivación (C4), evidencias (tipos, firma, límites, anulación) |
-| `src/lib/lib.test.ts` | 17 | Validaciones, zona horaria, compresión y partición de archivos, CSV, permisos |
+| `src/lib/lib.test.ts` | 20 | Validaciones, zona horaria, compresión y partición de archivos, CSV, permisos |
 | `src/components/components.test.tsx` | 3 | Accesibilidad de campos, modal y estados |
-| `tests/e2e/*.spec.ts` | 40 | Login, flujo completo por roles, actas y verificación, encuesta de satisfacción, usuarios, evidencias, auditoría, tema, responsive móvil |
+| `tests/e2e/*.spec.ts` | 41 | Login, flujo completo por roles, actas y verificación, encuesta de satisfacción, medición de tiempos, usuarios, evidencias, auditoría, tema, responsive móvil |
 
 `npm run test:coverage` mide la cobertura del frontend (informe en `coverage/`). En cada `push` a `main`,
 GitHub Actions (`.github/workflows/calidad.yml`) ejecuta lint, build, todas las pruebas, la cobertura y la

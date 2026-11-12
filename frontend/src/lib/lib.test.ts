@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { IncidentAction, IncidentSummary } from '../types/incident'
 import { followUpEvent, formatDuration, institutionName, personLabel, verifyUrl } from './acta'
 import { toCsv } from './csv'
+import { PERF_MAX_PER_SEND, PERF_MAX_QUEUE, PerfBuffer } from './perf'
 import { base64ToBytes, bytesToBase64, detectMime, MAX_FILE_BYTES, prepareFile, splitIntoChunks } from './files'
 import { formatBytes, formatDate, formatDateTime, todayInLima } from './format'
 import { canManageUsers, canViewAudit, isManager, nextStep } from './permissions'
@@ -152,5 +153,58 @@ describe('Acta de resolución (RN-011)', () => {
     expect(personLabel({ role: 'Estudiante' })).toBe('Estudiante')
     expect(verifyUrl('1A2B-3C4D-5E6F-7A8B', 'https://app.test')).toBe('https://app.test/verificar?codigo=1A2B-3C4D-5E6F-7A8B')
     expect(institutionName()).toBeTruthy()
+  })
+})
+
+describe('Tiempos de respuesta (RNF-001)', () => {
+  const s = (ms: number) => ({ fn: 'me', ms, ok: true, device: 'Escritorio' as const })
+
+  it('CP-UI-21: agrupa mediciones y las envía al completar el lote', async () => {
+    const sent: number[][] = []
+    const buffer = new PerfBuffer(async (batch) => void sent.push(batch.map((x) => x.ms)), { batchSize: 3 })
+    buffer.add(s(10.4))
+    buffer.add(s(-1)) // inválida: se ignora
+    buffer.add(s(Number.NaN))
+    buffer.add(s(20))
+    expect(sent).toHaveLength(0)
+    buffer.add(s(30))
+    await Promise.resolve()
+    expect(sent).toEqual([[10, 20, 30]])
+    expect(buffer.size).toBe(0)
+  })
+
+  it('CP-UI-22: si el envío falla conserva las mediciones; sin sesión no envía', async () => {
+    let fail = true
+    let logged = false
+    const sent: number[] = []
+    const buffer = new PerfBuffer(
+      async (batch) => {
+        if (fail) throw new Error('sin red')
+        sent.push(...batch.map((x) => x.ms))
+      },
+      { batchSize: 100, canSend: () => logged },
+    )
+    buffer.add(s(1))
+    await buffer.flush()
+    expect(buffer.size).toBe(1) // sin sesión: espera
+    logged = true
+    await buffer.flush()
+    expect(buffer.size).toBe(1) // falló la red: se reintenta luego
+    fail = false
+    await buffer.flush()
+    expect(sent).toEqual([1])
+    expect(buffer.size).toBe(0)
+  })
+
+  it('CP-UI-23: limita la cola y el tamaño de cada envío', async () => {
+    const sizes: number[] = []
+    const buffer = new PerfBuffer(async (batch) => void sizes.push(batch.length), {
+      batchSize: 10_000,
+      canSend: () => true,
+    })
+    for (let i = 0; i < PERF_MAX_QUEUE + 30; i++) buffer.add(s(i))
+    expect(buffer.size).toBe(PERF_MAX_QUEUE)
+    await buffer.flush()
+    expect(sizes).toEqual([PERF_MAX_PER_SEND])
   })
 })

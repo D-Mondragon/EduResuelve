@@ -1609,6 +1609,100 @@ end;
 $$;
 
 -- =====================================================================
+-- Tiempos de respuesta (RNF-001)
+-- =====================================================================
+
+-- Recibe un lote de mediciones del navegador (máx. 50). Las inválidas se ignoran.
+create or replace function public.log_perf(p_token text, p_samples jsonb) returns integer
+language plpgsql security definer set search_path = app, extensions, pg_temp as $$
+declare
+  v_user app.users := app.session_user(p_token);
+  v_count integer;
+begin
+  if jsonb_typeof(p_samples) <> 'array' then
+    perform app.fail('Formato de mediciones inválido.');
+  end if;
+  if jsonb_array_length(p_samples) > 50 then
+    perform app.fail('Se admiten como máximo 50 mediciones por envío.');
+  end if;
+
+  insert into app.perf_samples (fn, duration_ms, ok, role, device)
+  select x ->> 'fn', round((x ->> 'ms')::numeric)::integer, (x ->> 'ok')::boolean, v_user.role, x ->> 'device'
+  from jsonb_array_elements(p_samples) x
+  where jsonb_typeof(x) = 'object'
+    and coalesce(x ->> 'fn', '') ~ '^[a-z_]{2,40}$'
+    and coalesce(x ->> 'ms', '') ~ '^[0-9]+(\.[0-9]+)?$'
+    and (x ->> 'ms')::numeric between 0 and 600000
+    and x ->> 'ok' in ('true', 'false')
+    and x ->> 'device' in ('Escritorio', 'Móvil');
+  get diagnostics v_count = row_count;
+
+  -- Retención: 90 días
+  delete from app.perf_samples where created_at < now() - interval '90 days';
+  return v_count;
+end;
+$$;
+
+-- Estadísticas de rendimiento para el panel de calidad (Orientador / Administrador)
+create or replace function public.perf_stats(p_token text, p_days integer default 30) returns jsonb
+language plpgsql security definer set search_path = app, extensions, pg_temp as $$
+declare
+  v_user app.users := app.session_user(p_token);
+  v_days integer := least(greatest(coalesce(p_days, 30), 1), 90);
+  v_threshold integer := 3000;
+begin
+  if not app.is_manager(v_user) then
+    perform app.forbidden('Solo Orientación o Administración puede ver las métricas de calidad.');
+  end if;
+
+  return (
+    with s as (
+      select * from app.perf_samples where created_at >= now() - make_interval(days => v_days)
+    ),
+    agg as (
+      select
+        count(*) as n,
+        round(avg(duration_ms)) as avg_ms,
+        round(percentile_cont(0.5) within group (order by duration_ms)) as p50,
+        round(percentile_cont(0.95) within group (order by duration_ms)) as p95,
+        max(duration_ms) as max_ms,
+        round(100.0 * count(*) filter (where duration_ms <= v_threshold) / nullif(count(*), 0), 1) as under_pct,
+        round(100.0 * count(*) filter (where not ok) / nullif(count(*), 0), 1) as error_pct
+      from s
+    )
+    select jsonb_build_object(
+      'days', v_days,
+      'thresholdMs', v_threshold,
+      'since', now() - make_interval(days => v_days),
+      'overall', (select jsonb_build_object('count', n, 'avgMs', avg_ms, 'p50Ms', p50, 'p95Ms', p95,
+                    'maxMs', max_ms, 'underThresholdPct', under_pct, 'errorPct', error_pct) from agg),
+      'byOperation', coalesce((
+        select jsonb_agg(row_to_json(o)::jsonb order by o."p95Ms" desc)
+        from (
+          select fn as "operation", count(*) as "count",
+                 round(avg(duration_ms)) as "avgMs",
+                 round(percentile_cont(0.5) within group (order by duration_ms)) as "p50Ms",
+                 round(percentile_cont(0.95) within group (order by duration_ms)) as "p95Ms",
+                 max(duration_ms) as "maxMs",
+                 round(100.0 * count(*) filter (where duration_ms <= v_threshold) / count(*), 1) as "underThresholdPct",
+                 round(100.0 * count(*) filter (where not ok) / count(*), 1) as "errorPct"
+          from s group by fn
+        ) o), '[]'::jsonb),
+      'byDevice', coalesce((
+        select jsonb_agg(row_to_json(d)::jsonb order by d."device")
+        from (
+          select device as "device", count(*) as "count",
+                 round(avg(duration_ms)) as "avgMs",
+                 round(percentile_cont(0.95) within group (order by duration_ms)) as "p95Ms",
+                 round(100.0 * count(*) filter (where duration_ms <= v_threshold) / count(*), 1) as "underThresholdPct"
+          from s group by device
+        ) d), '[]'::jsonb)
+    )
+  );
+end;
+$$;
+
+-- =====================================================================
 -- Permisos de ejecución: solo las RPC públicas son invocables
 -- =====================================================================
 do $$
@@ -1638,7 +1732,7 @@ begin
     'evidence_begin', 'evidence_chunk', 'evidence_finish', 'evidence_chunk_get', 'evidence_void',
     'list_users', 'create_user', 'update_user', 'set_user_status', 'reset_user_password',
     'list_audit', 'list_notifications', 'mark_notifications_read',
-    'get_acta', 'verify_acta', 'submit_survey'
+    'get_acta', 'verify_acta', 'submit_survey', 'log_perf', 'perf_stats'
   ] loop
     for r in
       select p.oid::regprocedure as sig
