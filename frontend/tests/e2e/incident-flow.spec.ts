@@ -38,20 +38,23 @@ test.describe.serial('Flujo completo de una incidencia', () => {
     await login(page, USERS.orientador.dni)
     await page.goto(`/incidencias/${code}`)
     await page.getByRole('link', { name: 'Iniciar revisión' }).click()
+    // Esperar a estar en Seguimiento: el detalle también tiene un campo "Agregar observación"
+    await expect(page).toHaveURL(/\/seguimiento\?accion=review$/)
     await page.getByRole('button', { name: 'Iniciar revisión' }).click()
     await expect(page.getByText('Ingresa una observación para el seguimiento.')).toBeVisible()
-    await page.getByLabel('Observación').fill('Se conversó con los estudiantes.')
+    await page.getByLabel(/^Observación/).fill('Se conversó con los estudiantes.')
     await page.getByRole('button', { name: 'Iniciar revisión' }).click()
     await expect(page.getByText('La incidencia pasó a "En revisión".')).toBeVisible()
 
     await page.getByRole('link', { name: 'Asignar responsable' }).click()
+    await expect(page).toHaveURL(/\/seguimiento\?accion=assign$/)
     await page.getByRole('button', { name: 'Asignar responsable' }).click()
     await expect(page.getByText('Selecciona un responsable.')).toBeVisible()
     const select = page.locator('select#responsible')
     // Solo usuarios elegibles: no aparecen estudiantes
     await expect(select.locator('option', { hasText: 'Estudiante' })).toHaveCount(0)
     await select.selectOption({ label: 'Camila Ficticia — Docente' })
-    await page.getByLabel('Observación').fill('Asignado a tutoría.')
+    await page.getByLabel(/^Observación/).fill('Asignado a tutoría.')
     await page.getByRole('button', { name: 'Asignar responsable' }).click()
     await expect(page.getByText('La incidencia pasó a "Asignado".')).toBeVisible()
     await expect(page.getByText('Responsable: Camila Ficticia (Docente)')).toBeVisible()
@@ -66,11 +69,15 @@ test.describe.serial('Flujo completo de una incidencia', () => {
     await expect(page).toHaveURL(new RegExp(`/incidencias/${code}$`))
 
     await page.getByRole('link', { name: 'Iniciar atención' }).click()
-    await page.getByLabel('Observación').fill('Inicio de acompañamiento.')
+    // Causa de la falla intermitente en CI (PM-07): sin esta espera, en un equipo lento la prueba escribía
+    // en el campo "Agregar observación" del detalle antes de que se abriera Seguimiento.
+    await expect(page).toHaveURL(/\/seguimiento\?accion=start$/)
+    await page.getByLabel(/^Observación/).fill('Inicio de acompañamiento.')
     await page.getByRole('button', { name: 'Iniciar atención' }).click()
     await expect(page.getByText('La incidencia pasó a "En atención".')).toBeVisible()
 
     await page.getByRole('link', { name: 'Registrar resolución' }).click()
+    await expect(page).toHaveURL(/\/resolucion$/)
     await page.getByRole('button', { name: 'Registrar resolución' }).click()
     await expect(page.getByText('Ingresa un resumen de la resolución.')).toBeVisible()
     await page.getByLabel('Resumen de la resolución').fill('Se mediaron las diferencias.')
@@ -143,7 +150,10 @@ test.describe.serial('Flujo completo de una incidencia', () => {
     await expect(page.getByText('1 incidencia de')).toBeVisible()
     await page.getByRole('button', { name: 'Limpiar filtros' }).click()
     await page.getByLabel('Estado').selectOption('Resuelto')
-    await expect(page.getByText('ER-2026-0005').first()).toBeVisible()
     await expect(page).toHaveURL(/estado=Resuelto/)
+    // Independiente de los datos que hayan cambiado otras pruebas: toda fila visible debe estar Resuelta
+    const statuses = page.getByRole('table', { name: 'Listado de incidencias' }).locator('tbody tr td:nth-child(4)')
+    await expect(statuses.first()).toBeVisible()
+    for (const text of await statuses.allInnerTexts()) expect(text).toContain('Resuelto')
   })
 })

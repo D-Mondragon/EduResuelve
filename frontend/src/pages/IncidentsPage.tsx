@@ -1,6 +1,7 @@
 import { ChevronRight, ClipboardList, FilePlus2, FilterX, Search, SearchX } from 'lucide-react'
 import { useCallback, useMemo } from 'react'
-import { Link, useSearchParams } from 'react-router'
+import { Link } from 'react-router'
+import { useQueryParams } from '../hooks/useQueryParams'
 import { useCurrentUser } from '../auth/authContext'
 import { PriorityBadge, StatusBadge } from '../components/ui/Badge'
 import { Button, ButtonLink } from '../components/ui/Button'
@@ -26,7 +27,7 @@ function IncidentsPage() {
   const user = useCurrentUser()
   const load = useCallback(() => api.listIncidents(), [])
   const { data, error, loading, reload } = useAsync(load)
-  const [params, setParams] = useSearchParams()
+  const [params, updateParams] = useQueryParams()
 
   const search = params.get('q') ?? ''
   const status = (params.get('estado') ?? '') as IncidentStatus | ''
@@ -36,15 +37,10 @@ function IncidentsPage() {
   const hasFilters = Boolean(search || status || priority || category || onlyReassign)
 
   function setParam(key: string, value: string) {
-    setParams(
-      (current) => {
-        const next = new URLSearchParams(current)
-        if (value) next.set(key, value)
-        else next.delete(key)
-        return next
-      },
-      { replace: true },
-    )
+    updateParams((next) => {
+      if (value) next.set(key, value)
+      else next.delete(key)
+    })
   }
 
   const filtered = useMemo(() => {
@@ -162,7 +158,7 @@ function IncidentsPage() {
               {hasFilters && ` de ${data?.length ?? 0}`}
             </p>
             {hasFilters && (
-              <Button icon={FilterX} onClick={() => setParams({}, { replace: true })} size="sm" variant="ghost">
+              <Button icon={FilterX} onClick={() => updateParams((next) => [...next.keys()].forEach((key) => next.delete(key)))} size="sm" variant="ghost">
                 Limpiar filtros
               </Button>
             )}
