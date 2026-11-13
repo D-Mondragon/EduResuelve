@@ -19,6 +19,8 @@
     "test:e2e": "playwright test",
     "test:e2e:browsers": "node scripts/e2e-browsers.mjs",
     "measure:lighthouse": "node scripts/lighthouse.mjs",
+    "measure:load": "node scripts/load-test.mjs",
+    "measure:code": "node scripts/code-metrics.mjs",
     "test:all": "vitest run && playwright test"
   },
   "dependencies": {
