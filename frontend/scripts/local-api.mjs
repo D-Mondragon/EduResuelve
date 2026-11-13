@@ -6,7 +6,7 @@ import { rmSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { callRpc, createDatabase } from './pglite-db.mjs'
+import { callRpc, createDatabase, readSql } from './pglite-db.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const dataDir = resolve(here, '../.local-db')
@@ -19,6 +19,12 @@ if (process.argv.includes('--reset') && !inMemory) {
 }
 
 const db = await createDatabase(inMemory ? {} : { dataDir })
+
+// --demo: agrega las 40 incidencias simuladas de 04_demo_ampliado.sql (idempotente)
+if (process.argv.includes('--demo')) {
+  await db.exec(readSql('04_demo_ampliado.sql'))
+  console.log('Datos de demostración ampliados cargados (40 incidencias simuladas).')
+}
 
 function statusFor(code) {
   if (typeof code === 'string' && /^PT\d{3}$/.test(code)) return Number(code.slice(2))

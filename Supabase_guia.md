@@ -25,6 +25,7 @@ Archivos SQL (carpeta `supabase/` del repositorio):
 | `01_schema.sql` | Crea el esquema privado `app`, las tablas, restricciones e índices. |
 | `02_functions.sql` | Crea la lógica de negocio, el login y los permisos (funciones RPC). |
 | `03_seed.sql` | Carga los datos demo: 8 usuarios y 5 incidencias (ER-2026-0001 … 0005). |
+| `04_demo_ampliado.sql` | **Opcional.** Agrega 40 incidencias **simuladas** (historial, resoluciones, cierres, actas y encuestas) para que el panel de calidad tenga resultados representativos. No borra nada y se ejecuta una sola vez. |
 
 ---
 
@@ -170,6 +171,11 @@ Contraseña de todos: **`EduResuelve2026`**
 ---
 
 ## 8. Mantenimiento
+
+### Datos de demostración ampliados (opcional)
+Ejecuta `04_demo_ampliado.sql` después de 01–03. Los códigos continúan el contador y el rango cargado queda en
+**Auditoría** como *"Carga de datos de demostración"* (por ejemplo `ER-2026-0007 … ER-2026-0046`): decláralo
+como datos simulados en el informe. No genera mediciones de tiempos de respuesta (esas deben ser reales).
 
 ### Reiniciar los datos de demostración
 SQL Editor → ejecutar `00_reset.sql`, luego `01_schema.sql`, `02_functions.sql` y `03_seed.sql`.

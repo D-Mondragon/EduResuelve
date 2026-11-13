@@ -11,6 +11,7 @@ React 19 + Vite + TypeScript + Tailwind CSS v4 + React Router, con backend en **
 ```bash
 npm install
 npm run dev:local     # sin internet: API local (PGlite) + datos demo → http://localhost:5173
+npm run dev:demo      # igual, más 40 incidencias simuladas (04_demo_ampliado.sql) para el panel de calidad
 # o, con Supabase configurado en .env.local:
 npm run dev
 ```
@@ -71,6 +72,7 @@ npm run lint && npm run build
 | `tests/sql/surveys.test.ts` | 9 | Encuesta (RN-012): quién y cuándo responde, validaciones, respuesta única e inmutable, visibilidad, alerta por baja satisfacción, nueva encuesta tras reabrir |
 | `tests/sql/perf.test.ts` | 6 | Tiempos de respuesta (RNF-001): mediciones anónimas, validación, límites, retención de 90 días, promedio/mediana/p95/% < 3 s, permisos |
 | `tests/sql/quality.test.ts` | 7 | Panel de calidad: tiempos por prioridad vs meta (promedio, mediana, vencidas), controles de calidad de datos, duplicados, satisfacción (CSAT, tasa de respuesta), permisos |
+| `tests/sql/demo.test.ts` | 6 | Datos demo ampliados: continúan el contador sin tocar datos previos, idempotencia, coherencia de fechas e historial, actas y encuestas válidas |
 | `tests/sql/users-evidence.test.ts` | 15 | Gestión de usuarios, reasignación por desactivación (C4), evidencias (tipos, firma, límites, anulación) |
 | `src/lib/lib.test.ts` | 20 | Validaciones, zona horaria, compresión y partición de archivos, CSV, permisos |
 | `src/components/components.test.tsx` | 3 | Accesibilidad de campos, modal y estados |
