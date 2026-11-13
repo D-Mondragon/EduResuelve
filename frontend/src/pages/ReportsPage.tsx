@@ -17,7 +17,8 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { useCallback, useMemo, useRef, type KeyboardEvent, type ReactNode } from 'react'
-import { Link, useSearchParams } from 'react-router'
+import { Link } from 'react-router'
+import { useQueryParams } from '../hooks/useQueryParams'
 import { useCurrentUser } from '../auth/authContext'
 import { Badge, PriorityBadge, StatusBadge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
@@ -487,7 +488,7 @@ const presetIds: Preset[] = ['mes', '90', 'anio', 'todo', 'personalizado']
 
 function ReportsPage() {
   const me = useCurrentUser()
-  const [params, setParams] = useSearchParams()
+  const [params, updateParams] = useQueryParams()
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
 
   // Al volver de un acta, el reporte se recupera tal cual desde la URL
@@ -511,19 +512,14 @@ function ReportsPage() {
   /** Cambia parámetros de la URL; salvo que se indique, vuelve a la página 1. */
   const update = useCallback(
     (changes: Record<string, string | null>, resetPage = true) =>
-      setParams(
-        (prev) => {
-          const next = new URLSearchParams(prev)
-          for (const [key, value] of Object.entries(changes)) {
-            if (value === null || value === '') next.delete(key)
-            else next.set(key, value)
-          }
-          if (resetPage) next.delete('pagina')
-          return next
-        },
-        { replace: true },
-      ),
-    [setParams],
+      updateParams((next) => {
+        for (const [key, value] of Object.entries(changes)) {
+          if (value === null || value === '') next.delete(key)
+          else next.set(key, value)
+        }
+        if (resetPage) next.delete('pagina')
+      }),
+    [updateParams],
   )
   const setTab = (id: TabId) => update({ vista: id === 'incidencias' ? null : id })
   const setFilter = (key: keyof IncidentFilters, value: string) => update({ [filterParam[key]]: value })
@@ -550,16 +546,11 @@ function ReportsPage() {
     size: pageSize,
     // Se calcula sobre la página actual de la URL: varios clics seguidos avanzan una página cada uno
     onStep: (delta: number, totalPages: number) =>
-      setParams(
-        (prev) => {
-          const next = new URLSearchParams(prev)
-          const target = Math.min(Math.max(1, (Number(prev.get('pagina')) || 1) + delta), totalPages)
-          if (target > 1) next.set('pagina', String(target))
-          else next.delete('pagina')
-          return next
-        },
-        { replace: true },
-      ),
+      updateParams((next) => {
+        const target = Math.min(Math.max(1, (Number(next.get('pagina')) || 1) + delta), totalPages)
+        if (target > 1) next.set('pagina', String(target))
+        else next.delete('pagina')
+      }),
     onSize: (size: number) => update({ tam: size === DEFAULT_PAGE_SIZE ? null : String(size) }),
   }
   const summary = useMemo(() => summarize(rows), [rows])
