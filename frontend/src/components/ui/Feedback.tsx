@@ -145,7 +145,7 @@ export function PageHeader({
           {description && <p className="mt-1 text-sm leading-6 text-muted sm:text-base">{description}</p>}
         </div>
       </div>
-      {actions && <div className="flex flex-wrap gap-2 print:hidden">{actions}</div>}
+      {actions && <div className="flex flex-wrap gap-2 sm:shrink-0 print:hidden">{actions}</div>}
     </header>
   )
 }

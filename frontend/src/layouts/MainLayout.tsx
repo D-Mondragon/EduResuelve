@@ -1,4 +1,5 @@
 import {
+  ChartColumnBig,
   ClipboardList,
   FilePlus2,
   LayoutDashboard,
@@ -14,7 +15,7 @@ import { useCurrentUser } from '../auth/authContext'
 import { Logo } from '../components/Logo'
 import { NotificationBell } from '../components/NotificationBell'
 import { UserMenu } from '../components/UserMenu'
-import { canManageUsers, canViewAudit } from '../lib/permissions'
+import { canManageUsers, canViewAudit, canViewQuality } from '../lib/permissions'
 import { cn } from '../lib/ui'
 import type { User } from '../types/user'
 
@@ -36,6 +37,7 @@ function navigationFor(user: User): NavItem[] {
     },
     { label: 'Registrar incidencia', to: '/incidencias/nueva', icon: FilePlus2 },
   ]
+  if (canViewQuality(user.role)) items.push({ label: 'Calidad', to: '/calidad', icon: ChartColumnBig })
   if (canManageUsers(user.role)) items.push({ label: 'Usuarios', to: '/usuarios', icon: Users })
   if (canViewAudit(user.role)) items.push({ label: 'Auditoría', to: '/auditoria', icon: ShieldCheck })
   return items

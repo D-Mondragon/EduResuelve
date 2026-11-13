@@ -1703,6 +1703,170 @@ end;
 $$;
 
 -- =====================================================================
+-- Panel de calidad: tiempos de resolución, calidad de datos y satisfacción
+-- =====================================================================
+
+-- Metas de resolución por prioridad (horas). Documentadas en el informe de calidad.
+create or replace function app.target_hours(p_priority text) returns integer
+language sql immutable set search_path = app, extensions, pg_temp as $$
+  select case p_priority when 'Crítica' then 24 when 'Alta' then 72 when 'Media' then 168 else 360 end;
+$$;
+
+create or replace function public.quality_stats(p_token text) returns jsonb
+language plpgsql security definer set search_path = app, extensions, pg_temp as $$
+declare
+  v_user app.users := app.session_user(p_token);
+  v_checks jsonb;
+begin
+  if not app.is_manager(v_user) then
+    perform app.forbidden('Solo Orientación o Administración puede ver las métricas de calidad.');
+  end if;
+
+  -- ---------------- Calidad de datos (Fase 10) ----------------
+  with inc as (select * from app.incidents),
+  open_inc as (select * from inc where status not in ('Resuelto', 'Cerrado', 'Descartado')),
+  checks(ord, dimension, name, severity, total, codes) as (
+    select 1, 'Integridad', 'Resueltas o cerradas sin resolución registrada', 'error',
+           (select count(*) from inc where status in ('Resuelto', 'Cerrado')),
+           array(select code from inc i where status in ('Resuelto', 'Cerrado')
+                 and not exists (select 1 from app.resolutions r where r.incident_code = i.code and not r.superseded) order by code)
+    union all
+    select 2, 'Integridad', 'Cerradas sin cierre registrado', 'error',
+           (select count(*) from inc where status = 'Cerrado'),
+           array(select code from inc i where status = 'Cerrado'
+                 and not exists (select 1 from app.closures c where c.incident_code = i.code and not c.superseded) order by code)
+    union all
+    select 3, 'Integridad', 'Resueltas o cerradas sin acta vigente (RN-011)', 'error',
+           (select count(*) from inc where status in ('Resuelto', 'Cerrado')),
+           array(select code from inc i where status in ('Resuelto', 'Cerrado')
+                 and not exists (select 1 from app.actas a where a.incident_code = i.code and a.status = 'Vigente') order by code)
+    union all
+    select 4, 'Consistencia', 'Asignadas o en atención sin responsable', 'error',
+           (select count(*) from inc where status in ('Asignado', 'En atención')),
+           array(select code from inc where status in ('Asignado', 'En atención') and responsible_id is null order by code)
+    union all
+    select 5, 'Consistencia', 'Fecha del hecho posterior a la fecha de registro', 'error',
+           (select count(*) from inc),
+           array(select code from inc where incident_date > (registered_at at time zone 'America/Lima')::date order by code)
+    union all
+    select 6, 'Consistencia', 'Abiertas con responsable inactivo', 'warning',
+           (select count(*) from open_inc where responsible_id is not null),
+           array(select o.code from open_inc o join app.users u on u.id = o.responsible_id
+                 where u.status <> 'Activo' order by o.code)
+    union all
+    select 7, 'Unicidad', 'Posibles duplicados (mismo título y categoría en 7 días)', 'warning',
+           (select count(*) from inc),
+           array(select distinct a.code from inc a join inc b
+                   on a.code <> b.code and a.category = b.category
+                  and lower(trim(a.title)) = lower(trim(b.title))
+                  and abs(extract(epoch from (a.registered_at - b.registered_at))) <= 7 * 86400
+                 order by a.code)
+    union all
+    select 8, 'Actualización', 'Abiertas sin movimiento en más de 7 días', 'warning',
+           (select count(*) from open_inc),
+           array(select code from open_inc where updated_at < now() - interval '7 days' order by code)
+    union all
+    select 9, 'Completitud', 'Sin personas involucradas registradas', 'info',
+           (select count(*) from inc),
+           array(select code from inc where trim(involved_people) = '' order by code)
+  )
+  select coalesce(jsonb_agg(jsonb_build_object(
+           'dimension', dimension, 'check', name, 'severity', severity,
+           'total', total, 'affected', cardinality(codes),
+           'okPct', case when total = 0 then 100 else round(100.0 * (total - cardinality(codes)) / total, 1) end,
+           'codes', to_jsonb(codes[1:10])) order by ord), '[]'::jsonb)
+  into v_checks
+  from checks;
+
+  return jsonb_build_object(
+    'generatedAt', now(),
+    'totals', (select jsonb_build_object(
+        'incidents', count(*),
+        'open', count(*) filter (where status not in ('Resuelto', 'Cerrado', 'Descartado')),
+        'resolved', count(*) filter (where status = 'Resuelto'),
+        'closed', count(*) filter (where status = 'Cerrado'),
+        'discarded', count(*) filter (where status = 'Descartado'))
+      from app.incidents),
+
+    -- ---------------- Tiempos de resolución por prioridad ----------------
+    -- Desde el registro original hasta la resolución / cierre vigentes (los reabiertos cuentan completo).
+    'resolution', (
+      with t as (
+        select i.code, i.priority, i.status, i.registered_at,
+               app.target_hours(i.priority) as target,
+               extract(epoch from (r.registered_at - i.registered_at)) / 3600.0 as h_res,
+               extract(epoch from (c.closed_at - i.registered_at)) / 3600.0 as h_clo,
+               extract(epoch from (now() - i.registered_at)) / 3600.0 as age
+        from app.incidents i
+        left join lateral (select x.registered_at from app.resolutions x
+                           where x.incident_code = i.code and not x.superseded order by x.id desc limit 1) r on true
+        left join lateral (select x.closed_at from app.closures x
+                           where x.incident_code = i.code and not x.superseded order by x.id desc limit 1) c on true
+        where i.status <> 'Descartado'
+      ),
+      p(priority, ord) as (values ('Crítica', 1), ('Alta', 2), ('Media', 3), ('Baja', 4))
+      select jsonb_build_object(
+        'withinTargetPct', (select round(100.0 * count(*) filter (where h_res <= target)
+                                   / nullif(count(*) filter (where h_res is not null), 0), 1) from t),
+        'byPriority', jsonb_agg((
+          select jsonb_build_object(
+            'priority', p.priority,
+            'targetHours', app.target_hours(p.priority),
+            'resolved', count(*) filter (where h_res is not null),
+            'avgHoursToResolve', round(avg(h_res)::numeric, 1),
+            'medianHoursToResolve', round((percentile_cont(0.5) within group (order by h_res))::numeric, 1),
+            'withinTargetPct', round(100.0 * count(*) filter (where h_res <= target)
+                                     / nullif(count(*) filter (where h_res is not null), 0), 1),
+            'closed', count(*) filter (where h_clo is not null),
+            'avgHoursToClose', round(avg(h_clo)::numeric, 1),
+            'medianHoursToClose', round((percentile_cont(0.5) within group (order by h_clo))::numeric, 1),
+            'open', count(*) filter (where status not in ('Resuelto', 'Cerrado')),
+            'overdueOpen', count(*) filter (where status not in ('Resuelto', 'Cerrado') and age > target),
+            'overdueCodes', coalesce(to_jsonb(array_agg(code order by registered_at)
+                              filter (where status not in ('Resuelto', 'Cerrado') and age > target)), '[]'::jsonb))
+          from t where t.priority = p.priority) order by p.ord)
+      )
+      from p
+    ),
+
+    -- ---------------- Calidad de datos ----------------
+    'dataQuality', jsonb_build_object(
+      'score', (select round(avg((c ->> 'okPct')::numeric), 1) from jsonb_array_elements(v_checks) c
+                where c ->> 'severity' in ('error', 'warning')),
+      'checks', v_checks),
+
+    -- ---------------- Satisfacción (RN-012) ----------------
+    'satisfaction', (
+      with s as (select * from app.surveys),
+      eligible as (
+        select i.code, c.id as closure_id from app.incidents i
+        join lateral (select * from app.closures x where x.incident_code = i.code and not x.superseded
+                      order by x.id desc limit 1) c on true
+        where i.status = 'Cerrado'
+          and i.reported_by is distinct from i.responsible_id
+          and i.reported_by <> c.closed_by
+      )
+      select jsonb_build_object(
+        'responses', (select count(*) from s),
+        'pending', (select count(*) from eligible e
+                    where not exists (select 1 from app.surveys x where x.closure_id = e.closure_id)),
+        'avgRating', (select round(avg(rating), 2) from s),
+        'csatPct', (select round(100.0 * count(*) filter (where rating >= 4) / nullif(count(*), 0), 1) from s),
+        'avgSpeed', (select round(avg(speed_rating), 2) from s),
+        'lowCount', (select count(*) from s where rating <= 2 or resolved = 'No'),
+        'resolved', jsonb_build_object(
+          'Sí', (select count(*) from s where resolved = 'Sí'),
+          'Parcialmente', (select count(*) from s where resolved = 'Parcialmente'),
+          'No', (select count(*) from s where resolved = 'No')),
+        'ratingDistribution', (select jsonb_agg(jsonb_build_object(
+                                 'rating', g, 'count', (select count(*) from s where rating = g)) order by g)
+                               from generate_series(1, 5) g))
+    )
+  );
+end;
+$$;
+
+-- =====================================================================
 -- Permisos de ejecución: solo las RPC públicas son invocables
 -- =====================================================================
 do $$
@@ -1732,7 +1896,7 @@ begin
     'evidence_begin', 'evidence_chunk', 'evidence_finish', 'evidence_chunk_get', 'evidence_void',
     'list_users', 'create_user', 'update_user', 'set_user_status', 'reset_user_password',
     'list_audit', 'list_notifications', 'mark_notifications_read',
-    'get_acta', 'verify_acta', 'submit_survey', 'log_perf', 'perf_stats'
+    'get_acta', 'verify_acta', 'submit_survey', 'log_perf', 'perf_stats', 'quality_stats'
   ] loop
     for r in
       select p.oid::regprocedure as sig
