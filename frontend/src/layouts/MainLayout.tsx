@@ -1,6 +1,7 @@
 import {
   ChartColumnBig,
   ClipboardList,
+  FileChartColumn,
   FilePlus2,
   LayoutDashboard,
   Menu,
@@ -15,7 +16,7 @@ import { useCurrentUser } from '../auth/authContext'
 import { Logo } from '../components/Logo'
 import { NotificationBell } from '../components/NotificationBell'
 import { UserMenu } from '../components/UserMenu'
-import { canManageUsers, canViewAudit, canViewQuality } from '../lib/permissions'
+import { canManageUsers, canViewAudit, canViewQuality, canViewReports } from '../lib/permissions'
 import { cn } from '../lib/ui'
 import type { User } from '../types/user'
 
@@ -37,6 +38,7 @@ function navigationFor(user: User): NavItem[] {
     },
     { label: 'Registrar incidencia', to: '/incidencias/nueva', icon: FilePlus2 },
   ]
+  if (canViewReports(user.role)) items.push({ label: 'Reportes', to: '/reportes', icon: FileChartColumn })
   if (canViewQuality(user.role)) items.push({ label: 'Calidad', to: '/calidad', icon: ChartColumnBig })
   if (canManageUsers(user.role)) items.push({ label: 'Usuarios', to: '/usuarios', icon: Users })
   if (canViewAudit(user.role)) items.push({ label: 'Auditoría', to: '/auditoria', icon: ShieldCheck })
@@ -139,7 +141,7 @@ function MainLayout() {
         </div>
       )}
 
-      <div className="lg:pl-64">
+      <div className="lg:pl-64 print:pl-0">
         <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-line bg-surface/90 px-4 backdrop-blur sm:px-6 print:hidden">
           <div className="flex items-center gap-2">
             <button

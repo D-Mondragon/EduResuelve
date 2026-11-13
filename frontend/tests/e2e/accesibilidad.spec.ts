@@ -40,6 +40,7 @@ const adminPages: Array<[string, string]> = [
   ['Cierre', '/incidencias/ER-2026-0005/cierre'],
   ['Acta de resolución', '/incidencias/ER-2026-0004/acta/ACT-2026-0004-02'],
   ['Panel de calidad', '/calidad'],
+  ['Reportes', '/reportes'],
   ['Usuarios', '/usuarios'],
   ['Auditoría', '/auditoria'],
   ['Página no encontrada', '/no-existe'],

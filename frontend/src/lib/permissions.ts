@@ -9,6 +9,11 @@ export function canManageUsers(role: UserRole | undefined): boolean {
   return role === 'Administrador'
 }
 
+/** Reportes: Orientación y Administración. */
+export function canViewReports(role: UserRole | undefined): boolean {
+  return isManager(role)
+}
+
 /** Panel de calidad: Orientación y Administración. */
 export function canViewQuality(role: UserRole | undefined): boolean {
   return isManager(role)
