@@ -1,0 +1,465 @@
+{
+  "audited": 34,
+  "tags": [
+    "wcag2a",
+    "wcag2aa",
+    "wcag21a",
+    "wcag21aa",
+    "wcag22aa"
+  ],
+  "findings": [
+    {
+      "page": "Iniciar sesión",
+      "theme": "claro",
+      "id": "color-contrast",
+      "impact": "serious",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "nodes": 4,
+      "targets": [
+        "button[title=\"Tema oscuro\"]",
+        "button[title=\"Tema sistema\"]",
+        ".mt-3",
+        ".mt-4.text-center"
+      ]
+    },
+    {
+      "page": "Verificar acta",
+      "theme": "claro",
+      "id": "color-contrast",
+      "impact": "serious",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "nodes": 2,
+      "targets": [
+        "button[title=\"Tema oscuro\"]",
+        "button[title=\"Tema sistema\"]"
+      ]
+    },
+    {
+      "page": "Inicio (Administrador)",
+      "theme": "claro",
+      "id": "color-contrast",
+      "impact": "serious",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "nodes": 2,
+      "targets": [
+        ".mt-1",
+        ".mb-3"
+      ]
+    },
+    {
+      "page": "Incidencias",
+      "theme": "claro",
+      "id": "color-contrast",
+      "impact": "serious",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "nodes": 8,
+      "targets": [
+        ".leading-6",
+        ".text-sm[aria-live=\"polite\"]",
+        "th:nth-child(1)",
+        "th:nth-child(2)",
+        "th:nth-child(3)"
+      ]
+    },
+    {
+      "page": "Detalle de incidencia",
+      "theme": "claro",
+      "id": "color-contrast",
+      "impact": "serious",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "nodes": 4,
+      "targets": [
+        ".rounded-md",
+        ".mt-3.gap-2.flex-wrap > .inline-flex.gap-1.text-xs:nth-child(3)",
+        ".inline-flex.gap-1.text-xs:nth-child(4)",
+        ".inline-flex.gap-1.text-xs:nth-child(5)"
+      ]
+    },
+    {
+      "page": "Registrar incidencia",
+      "theme": "claro",
+      "id": "color-contrast",
+      "impact": "serious",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "nodes": 1,
+      "targets": [
+        ".mt-1"
+      ]
+    },
+    {
+      "page": "Seguimiento",
+      "theme": "claro",
+      "id": "color-contrast",
+      "impact": "serious",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "nodes": 4,
+      "targets": [
+        ".rounded-md",
+        ".text-emerald-700.dark\\:text-emerald-400 > .font-medium.text-muted",
+        ".mt-3 > .inline-flex.gap-1.text-xs:nth-child(3)",
+        ".inline-flex.gap-1.text-xs:nth-child(4)"
+      ]
+    },
+    {
+      "page": "Evidencias",
+      "theme": "claro",
+      "id": "color-contrast",
+      "impact": "serious",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "nodes": 5,
+      "targets": [
+        ".gap-1\\.5",
+        ".text-emerald-700.dark\\:text-emerald-400.font-semibold > .font-medium.text-muted",
+        ".gap-1.inline-flex.text-xs:nth-child(3)",
+        ".gap-1.inline-flex.text-xs:nth-child(4)",
+        ".gap-1.inline-flex.text-xs:nth-child(5)"
+      ]
+    },
+    {
+      "page": "Resolución",
+      "theme": "claro",
+      "id": "color-contrast",
+      "impact": "serious",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "nodes": 5,
+      "targets": [
+        ".gap-1\\.5",
+        ".text-emerald-700.dark\\:text-emerald-400 > .text-muted.font-medium",
+        ".gap-1.inline-flex.text-xs:nth-child(3)",
+        ".gap-1.inline-flex.text-xs:nth-child(4)",
+        ".gap-1.inline-flex.text-xs:nth-child(5)"
+      ]
+    },
+    {
+      "page": "Cierre",
+      "theme": "claro",
+      "id": "color-contrast",
+      "impact": "serious",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "nodes": 5,
+      "targets": [
+        ".gap-1\\.5",
+        ".text-emerald-700.dark\\:text-emerald-400 > span",
+        ".gap-1.inline-flex.text-xs:nth-child(3)",
+        ".gap-1.inline-flex.text-xs:nth-child(4)",
+        ".gap-1.inline-flex.text-xs:nth-child(5)"
+      ]
+    },
+    {
+      "page": "Acta de resolución",
+      "theme": "claro",
+      "id": "color-contrast",
+      "impact": "serious",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "nodes": 3,
+      "targets": [
+        ".space-y-3 > .text-muted",
+        ".text-muted > strong:nth-child(1)",
+        "strong:nth-child(2)"
+      ]
+    },
+    {
+      "page": "Panel de calidad",
+      "theme": "claro",
+      "id": "aria-required-attr",
+      "impact": "critical",
+      "help": "Required ARIA attributes must be provided",
+      "nodes": 2,
+      "targets": [
+        "div[aria-label=\"Crítica: dentro de la meta\"]",
+        "div[aria-label=\"Alta: dentro de la meta\"]"
+      ]
+    },
+    {
+      "page": "Panel de calidad",
+      "theme": "claro",
+      "id": "color-contrast",
+      "impact": "serious",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "nodes": 3,
+      "targets": [
+        ".leading-6",
+        ".space-y-6 > p:nth-child(2)",
+        ".space-y-6 > .leading-5"
+      ]
+    },
+    {
+      "page": "Panel de calidad",
+      "theme": "claro",
+      "id": "target-size",
+      "impact": "serious",
+      "help": "All touch targets must be 24px large, or leave sufficient space",
+      "nodes": 2,
+      "targets": [
+        "td:nth-child(5) > .gap-1\\.5.flex-wrap.flex > .rounded.font-mono[href=\"/incidencias/ER-2026-0001\"]",
+        "td:nth-child(5) > .gap-1\\.5.flex-wrap.flex > .rounded.font-mono[href=\"/incidencias/ER-2026-0003\"]"
+      ]
+    },
+    {
+      "page": "Usuarios",
+      "theme": "claro",
+      "id": "color-contrast",
+      "impact": "serious",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "nodes": 8,
+      "targets": [
+        ".mt-1",
+        "p[aria-live=\"polite\"]",
+        "th:nth-child(1)",
+        "th:nth-child(2)",
+        "th:nth-child(3)"
+      ]
+    },
+    {
+      "page": "Usuarios",
+      "theme": "claro",
+      "id": "label-content-name-mismatch",
+      "impact": "serious",
+      "help": "Elements must have their visible text as part of their accessible name",
+      "nodes": 8,
+      "targets": [
+        "tr:nth-child(1) > .py-2 > .lg\\:flex-nowrap.flex-wrap.gap-1 > .disabled\\:opacity-50.gap-1\\.5.py-1\\.5:nth-child(2)",
+        "tr:nth-child(2) > .py-2 > .lg\\:flex-nowrap.flex-wrap.gap-1 > .disabled\\:opacity-50.gap-1\\.5.py-1\\.5:nth-child(2)",
+        "tr:nth-child(3) > .py-2 > .lg\\:flex-nowrap.flex-wrap.gap-1 > .disabled\\:opacity-50.gap-1\\.5.py-1\\.5:nth-child(2)",
+        "tr:nth-child(4) > .py-2 > .lg\\:flex-nowrap.flex-wrap.gap-1 > .disabled\\:opacity-50.gap-1\\.5.py-1\\.5:nth-child(2)",
+        "tr:nth-child(5) > .py-2 > .lg\\:flex-nowrap.flex-wrap.gap-1 > .disabled\\:opacity-50.gap-1\\.5.py-1\\.5:nth-child(2)"
+      ]
+    },
+    {
+      "page": "Auditoría",
+      "theme": "claro",
+      "id": "color-contrast",
+      "impact": "serious",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "nodes": 7,
+      "targets": [
+        ".leading-6",
+        ".text-sm.text-muted[aria-live=\"polite\"]",
+        "th:nth-child(1)",
+        "th:nth-child(2)",
+        "th:nth-child(3)"
+      ]
+    },
+    {
+      "page": "Inicio (Estudiante)",
+      "theme": "claro",
+      "id": "color-contrast",
+      "impact": "serious",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "nodes": 1,
+      "targets": [
+        ".mt-1"
+      ]
+    },
+    {
+      "page": "Encuesta de satisfacción",
+      "theme": "claro",
+      "id": "color-contrast",
+      "impact": "serious",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "nodes": 5,
+      "targets": [
+        ".gap-1\\.5",
+        ".text-emerald-700.dark\\:text-emerald-400 > .text-muted.font-medium",
+        ".gap-1.inline-flex.text-xs:nth-child(3)",
+        ".gap-1.inline-flex.text-xs:nth-child(4)",
+        ".gap-1.inline-flex.text-xs:nth-child(5)"
+      ]
+    },
+    {
+      "page": "Iniciar sesión",
+      "theme": "oscuro",
+      "id": "color-contrast",
+      "impact": "serious",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "nodes": 1,
+      "targets": [
+        ".min-h-10"
+      ]
+    },
+    {
+      "page": "Verificar acta",
+      "theme": "oscuro",
+      "id": "color-contrast",
+      "impact": "serious",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "nodes": 1,
+      "targets": [
+        ".min-h-10"
+      ]
+    },
+    {
+      "page": "Inicio (Administrador)",
+      "theme": "oscuro",
+      "id": "color-contrast",
+      "impact": "serious",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "nodes": 1,
+      "targets": [
+        ".min-h-10"
+      ]
+    },
+    {
+      "page": "Incidencias",
+      "theme": "oscuro",
+      "id": "color-contrast",
+      "impact": "serious",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "nodes": 1,
+      "targets": [
+        ".min-h-10"
+      ]
+    },
+    {
+      "page": "Detalle de incidencia",
+      "theme": "oscuro",
+      "id": "color-contrast",
+      "impact": "serious",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "nodes": 2,
+      "targets": [
+        ".border-emerald-200 > .hover\\:bg-emerald-800.disabled\\:bg-slate-300.disabled\\:text-slate-500",
+        ".space-y-4.sm\\:p-6.p-5 > .gap-4.sm\\:flex-row.sm\\:items-center > .hover\\:bg-emerald-800.disabled\\:bg-slate-300.disabled\\:text-slate-500"
+      ]
+    },
+    {
+      "page": "Registrar incidencia",
+      "theme": "oscuro",
+      "id": "color-contrast",
+      "impact": "serious",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "nodes": 1,
+      "targets": [
+        ".hover\\:bg-emerald-800"
+      ]
+    },
+    {
+      "page": "Evidencias",
+      "theme": "oscuro",
+      "id": "color-contrast",
+      "impact": "serious",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "nodes": 1,
+      "targets": [
+        ".min-h-10"
+      ]
+    },
+    {
+      "page": "Resolución",
+      "theme": "oscuro",
+      "id": "color-contrast",
+      "impact": "serious",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "nodes": 1,
+      "targets": [
+        ".hover\\:bg-emerald-800"
+      ]
+    },
+    {
+      "page": "Cierre",
+      "theme": "oscuro",
+      "id": "color-contrast",
+      "impact": "serious",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "nodes": 1,
+      "targets": [
+        ".hover\\:bg-emerald-800"
+      ]
+    },
+    {
+      "page": "Acta de resolución",
+      "theme": "oscuro",
+      "id": "color-contrast",
+      "impact": "serious",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "nodes": 1,
+      "targets": [
+        ".hover\\:bg-emerald-800"
+      ]
+    },
+    {
+      "page": "Panel de calidad",
+      "theme": "oscuro",
+      "id": "aria-required-attr",
+      "impact": "critical",
+      "help": "Required ARIA attributes must be provided",
+      "nodes": 2,
+      "targets": [
+        "div[aria-label=\"Crítica: dentro de la meta\"]",
+        "div[aria-label=\"Alta: dentro de la meta\"]"
+      ]
+    },
+    {
+      "page": "Panel de calidad",
+      "theme": "oscuro",
+      "id": "target-size",
+      "impact": "serious",
+      "help": "All touch targets must be 24px large, or leave sufficient space",
+      "nodes": 2,
+      "targets": [
+        "td:nth-child(5) > .gap-1\\.5.flex-wrap.flex > .rounded.font-mono[href=\"/incidencias/ER-2026-0001\"]",
+        "td:nth-child(5) > .gap-1\\.5.flex-wrap.flex > .rounded.font-mono[href=\"/incidencias/ER-2026-0003\"]"
+      ]
+    },
+    {
+      "page": "Usuarios",
+      "theme": "oscuro",
+      "id": "color-contrast",
+      "impact": "serious",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "nodes": 1,
+      "targets": [
+        ".hover\\:bg-emerald-800"
+      ]
+    },
+    {
+      "page": "Usuarios",
+      "theme": "oscuro",
+      "id": "label-content-name-mismatch",
+      "impact": "serious",
+      "help": "Elements must have their visible text as part of their accessible name",
+      "nodes": 8,
+      "targets": [
+        "tr:nth-child(1) > .py-2 > .lg\\:flex-nowrap.flex-wrap.gap-1 > .disabled\\:opacity-50.gap-1\\.5.py-1\\.5:nth-child(2)",
+        "tr:nth-child(2) > .py-2 > .lg\\:flex-nowrap.flex-wrap.gap-1 > .disabled\\:opacity-50.gap-1\\.5.py-1\\.5:nth-child(2)",
+        "tr:nth-child(3) > .py-2 > .lg\\:flex-nowrap.flex-wrap.gap-1 > .disabled\\:opacity-50.gap-1\\.5.py-1\\.5:nth-child(2)",
+        "tr:nth-child(4) > .py-2 > .lg\\:flex-nowrap.flex-wrap.gap-1 > .disabled\\:opacity-50.gap-1\\.5.py-1\\.5:nth-child(2)",
+        "tr:nth-child(5) > .py-2 > .lg\\:flex-nowrap.flex-wrap.gap-1 > .disabled\\:opacity-50.gap-1\\.5.py-1\\.5:nth-child(2)"
+      ]
+    },
+    {
+      "page": "Página no encontrada",
+      "theme": "oscuro",
+      "id": "color-contrast",
+      "impact": "serious",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "nodes": 1,
+      "targets": [
+        ".min-h-10"
+      ]
+    },
+    {
+      "page": "Inicio (Estudiante)",
+      "theme": "oscuro",
+      "id": "color-contrast",
+      "impact": "serious",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "nodes": 2,
+      "targets": [
+        ".sm\\:shrink-0 > .min-h-10.focus-visible\\:outline-offset-2.disabled\\:cursor-not-allowed",
+        ".border-amber-200 > .min-h-10.focus-visible\\:outline-offset-2.disabled\\:cursor-not-allowed"
+      ]
+    },
+    {
+      "page": "Encuesta de satisfacción",
+      "theme": "oscuro",
+      "id": "color-contrast",
+      "impact": "serious",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "nodes": 1,
+      "targets": [
+        ".hover\\:bg-emerald-800"
+      ]
+    }
+  ]
+}

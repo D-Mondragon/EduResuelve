@@ -320,7 +320,7 @@ function UserActions({ user, isSelf, onAction }: { user: ManagedUser; isSelf: bo
         Editar
       </Button>
       <Button
-        aria-label={`Restablecer contraseña de ${user.fullName}`}
+        aria-label={`Restablecer clave de ${user.fullName}`}
         icon={KeyRound}
         onClick={() => onAction({ kind: 'reset', user })}
         size="sm"

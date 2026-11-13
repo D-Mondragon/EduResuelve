@@ -61,14 +61,25 @@ function StatusPill({ state, label }: { state: keyof typeof stateStyle; label?: 
 /** Barra de avance 0–100 con la cifra al lado. */
 function Meter({ value, label }: { value: number | null; label: string }) {
   const pct = value === null ? 0 : Math.max(0, Math.min(100, value))
+  if (value === null) {
+    return (
+      <div className="flex min-w-32 items-center gap-2">
+        <span aria-hidden="true" className="h-2 flex-1 rounded-full bg-surface-2" />
+        <span className="w-14 text-right text-sm text-muted">
+          <span aria-hidden="true">—</span>
+          <span className="sr-only">{label}: sin datos</span>
+        </span>
+      </div>
+    )
+  }
   return (
     <div className="flex min-w-32 items-center gap-2">
       <div
         aria-label={label}
         aria-valuemax={100}
         aria-valuemin={0}
-        aria-valuenow={value ?? undefined}
-        aria-valuetext={value === null ? 'Sin datos' : formatPct(value)}
+        aria-valuenow={value}
+        aria-valuetext={formatPct(value)}
         className="h-2 flex-1 overflow-hidden rounded-full bg-surface-2"
         role="meter"
       >
@@ -140,7 +151,7 @@ function CodeLinks({ codes, more }: { codes: string[]; more?: number }) {
     <span className="flex flex-wrap gap-1.5">
       {codes.map((code) => (
         <Link
-          className="rounded font-mono text-xs font-medium text-emerald-700 hover:underline dark:text-emerald-400"
+          className="inline-flex min-h-6 items-center rounded px-0.5 font-mono text-xs font-medium text-emerald-700 hover:underline dark:text-emerald-400"
           key={code}
           to={`/incidencias/${encodeURIComponent(code)}`}
         >

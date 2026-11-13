@@ -10,7 +10,8 @@
   --line: #e2e8f0;
   --ink: #0f172a;
   --ink-2: #334155;
-  --muted: #64748b;
+  /* #5b6b80: contraste ≥ 4,9:1 sobre todas las superficies claras (WCAG AA; antes #64748b no cumplía) */
+  --muted: #5b6b80;
 }
 
 .dark {

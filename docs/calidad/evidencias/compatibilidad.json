@@ -1,0 +1,41 @@
+{
+  "date": "2026-11-13T03:03:53.266Z",
+  "results": [
+    {
+      "browser": "chromium",
+      "passed": 44,
+      "failed": 0,
+      "flaky": 0,
+      "seconds": 103,
+      "exitCode": 0,
+      "failures": []
+    },
+    {
+      "browser": "edge",
+      "passed": 44,
+      "failed": 0,
+      "flaky": 0,
+      "seconds": 139,
+      "exitCode": 0,
+      "failures": []
+    },
+    {
+      "browser": "firefox",
+      "passed": 44,
+      "failed": 0,
+      "flaky": 0,
+      "seconds": 362,
+      "exitCode": 0,
+      "failures": []
+    },
+    {
+      "browser": "webkit",
+      "passed": 44,
+      "failed": 0,
+      "flaky": 0,
+      "seconds": 178,
+      "exitCode": 0,
+      "failures": []
+    }
+  ]
+}

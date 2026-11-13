@@ -1,0 +1,94 @@
+{
+  "date": "2026-11-13T03:01:59.161Z",
+  "frontend": {
+    "files": 58,
+    "loc": 7156
+  },
+  "sql": {
+    "files": 5,
+    "loc": 2275
+  },
+  "tests": {
+    "unit": {
+      "files": 2,
+      "loc": 227
+    },
+    "sql": {
+      "files": 9,
+      "loc": 964
+    },
+    "e2e": {
+      "files": 10,
+      "loc": 687
+    }
+  },
+  "testToCodeRatio": 0.2,
+  "complexity": {
+    "threshold": 10,
+    "functionsAbove": 25,
+    "max": 38,
+    "top": [
+      {
+        "file": "pages\\IncidentFollowUpPage.tsx",
+        "line": 83,
+        "complexity": 38,
+        "message": "Function 'IncidentFollowUpPage' has a complexity of 38. Maximum allowed is 10."
+      },
+      {
+        "file": "pages\\ActaPage.tsx",
+        "line": 52,
+        "complexity": 29,
+        "message": "Function 'ActaDocument' has a complexity of 29. Maximum allowed is 10."
+      },
+      {
+        "file": "pages\\IncidentDetailPage.tsx",
+        "line": 199,
+        "complexity": 27,
+        "message": "Function 'IncidentDetailPage' has a complexity of 27. Maximum allowed is 10."
+      },
+      {
+        "file": "pages\\IncidentsPage.tsx",
+        "line": 25,
+        "complexity": 23,
+        "message": "Function 'IncidentsPage' has a complexity of 23. Maximum allowed is 10."
+      },
+      {
+        "file": "pages\\IncidentClosurePage.tsx",
+        "line": 14,
+        "complexity": 20,
+        "message": "Function 'IncidentClosurePage' has a complexity of 20. Maximum allowed is 10."
+      },
+      {
+        "file": "pages\\AuditPage.tsx",
+        "line": 29,
+        "complexity": 18,
+        "message": "Function 'AuditPage' has a complexity of 18. Maximum allowed is 10."
+      },
+      {
+        "file": "pages\\QualityPage.tsx",
+        "line": 404,
+        "complexity": 18,
+        "message": "Function 'QualityPage' has a complexity of 18. Maximum allowed is 10."
+      },
+      {
+        "file": "pages\\IncidentEvidencePage.tsx",
+        "line": 53,
+        "complexity": 16,
+        "message": "Function 'UploadForm' has a complexity of 16. Maximum allowed is 10."
+      },
+      {
+        "file": "pages\\IncidentFormPage.tsx",
+        "line": 48,
+        "complexity": 16,
+        "message": "Function 'IncidentFormPage' has a complexity of 16. Maximum allowed is 10."
+      },
+      {
+        "file": "pages\\IncidentEvidencePage.tsx",
+        "line": 253,
+        "complexity": 15,
+        "message": "Function 'IncidentEvidencePage' has a complexity of 15. Maximum allowed is 10."
+      }
+    ]
+  },
+  "lintProblems": 0
+}
