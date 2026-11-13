@@ -52,6 +52,13 @@ body {
   min-height: 100dvh;
 }
 
+/* Texto corrido del acta: justificado como un documento formal; la división silábica (lang="es")
+   evita los espacios grandes entre palabras que deja la justificación en columnas angostas. */
+.acta-prose {
+  text-align: justify;
+  hyphens: auto;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -73,6 +80,21 @@ body {
   }
   .print-landscape {
     page: horizontal;
+  }
+  /* Acta de resolución: A4 vertical con márgenes de documento formal (2,5 cm; 3 cm a la izquierda
+     para el archivo o anillado) y numeración de páginas para el foliado. */
+  @page acta {
+    size: A4;
+    margin: 25mm 25mm 25mm 30mm;
+    @bottom-right {
+      content: 'Página ' counter(page) ' de ' counter(pages);
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 8pt;
+      color: #475569;
+    }
+  }
+  .acta-sheet {
+    page: acta;
   }
   body,
   .bg-canvas {
