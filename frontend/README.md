@@ -54,6 +54,7 @@ React (Vite)  ──fetch──▶  Supabase Data API (/rest/v1/rpc/*)  ──�
 | Responder la encuesta de satisfacción (RN-012) | si registró la incidencia, tras el cierre | ← igual | ← igual | ← igual |
 | Ver respuestas de la encuesta | la propia | la propia | ✅ | ✅ |
 | Panel de calidad (`/calidad`) | ❌ | ❌ | ✅ | ✅ |
+| Reportes (`/reportes`) | ❌ | ❌ | ✅ | ✅ |
 | Usuarios y auditoría | ❌ | ❌ | ❌ | ✅ |
 
 ## Pruebas
@@ -73,10 +74,11 @@ npm run lint && npm run build
 | `tests/sql/perf.test.ts` | 6 | Tiempos de respuesta (RNF-001): mediciones anónimas, validación, límites, retención de 90 días, promedio/mediana/p95/% < 3 s, permisos |
 | `tests/sql/quality.test.ts` | 7 | Panel de calidad: tiempos por prioridad vs meta (promedio, mediana, vencidas), controles de calidad de datos, duplicados, satisfacción (CSAT, tasa de respuesta), permisos |
 | `tests/sql/demo.test.ts` | 6 | Datos demo ampliados: continúan el contador sin tocar datos previos, idempotencia, coherencia de fechas e historial, actas y encuestas válidas |
+| `tests/sql/reports.test.ts` | 4 | Reportes: filas con tiempos, acta vigente y satisfacción; filtro por periodo; permisos y auditoría |
 | `tests/sql/users-evidence.test.ts` | 15 | Gestión de usuarios, reasignación por desactivación (C4), evidencias (tipos, firma, límites, anulación) |
-| `src/lib/lib.test.ts` | 20 | Validaciones, zona horaria, compresión y partición de archivos, CSV, permisos |
+| `src/lib/lib.test.ts` | 26 | Validaciones, zona horaria, compresión y partición de archivos, CSV, permisos |
 | `src/components/components.test.tsx` | 3 | Accesibilidad de campos, modal y estados |
-| `tests/e2e/*.spec.ts` | 44 | Login, flujo completo por roles, actas y verificación, encuesta de satisfacción, medición de tiempos, panel de calidad, usuarios, evidencias, auditoría, tema, responsive móvil |
+| `tests/e2e/*.spec.ts` | 54 | Login, flujo completo por roles, actas y verificación, encuesta, medición de tiempos, panel de calidad, reportes, impresión en A4, accesibilidad (axe), usuarios, evidencias, auditoría, tema, responsive móvil |
 
 `npm run test:coverage` mide la cobertura del frontend (informe en `coverage/`). En cada `push` a `main`,
 GitHub Actions (`.github/workflows/calidad.yml`) ejecuta lint, build, todas las pruebas, la cobertura y la

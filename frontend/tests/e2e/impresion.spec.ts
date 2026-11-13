@@ -42,6 +42,15 @@ test.describe('Impresión de reportes (PDF)', () => {
     await expect(page.getByRole('columnheader', { name: 'Descripción' })).toBeVisible()
   })
 
+  test('E2E-PRINT-04: los reportes se imprimen en horizontal y caben en la hoja', async ({ page }) => {
+    await login(page, USERS.admin.dni)
+    await page.goto('/reportes')
+    await page.getByRole('button', { name: 'Todo' }).click()
+    await expect(page.getByRole('table', { name: 'Reporte de incidencias' })).toBeVisible()
+    expect(await page.locator('.print-landscape').count()).toBe(1)
+    await expectFitsPrintedPage(page, A4_HORIZONTAL)
+  })
+
   test('E2E-PRINT-03: el acta cabe en una hoja A4 vertical', async ({ page }) => {
     await login(page, USERS.admin.dni)
     await page.goto('/incidencias/ER-2026-0004/acta/ACT-2026-0004-02')

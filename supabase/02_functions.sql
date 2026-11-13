@@ -1867,6 +1867,58 @@ end;
 $$;
 
 -- =====================================================================
+-- Reportes (Orientación / Administración)
+-- Una fila por incidencia con todo lo necesario para los reportes:
+-- tiempos frente a la meta, vencimiento, acta vigente y satisfacción.
+-- =====================================================================
+create or replace function public.report_incidents(p_token text, p_from date default null, p_to date default null)
+returns jsonb
+language plpgsql security definer set search_path = app, extensions, pg_temp as $$
+declare
+  v_user app.users := app.session_user(p_token);
+begin
+  if not app.is_manager(v_user) then
+    perform app.forbidden('Solo Orientación o Administración puede ver los reportes.');
+  end if;
+  if p_from is not null and p_to is not null and p_from > p_to then
+    perform app.fail('La fecha inicial no puede ser posterior a la fecha final.');
+  end if;
+
+  perform app.log(v_user, 'Consulta de reporte', 'Reportes', '',
+    format('Periodo: %s a %s.', coalesce(to_char(p_from, 'DD/MM/YYYY'), 'inicio'), coalesce(to_char(p_to, 'DD/MM/YYYY'), 'hoy')));
+
+  return coalesce((
+    select jsonb_agg(x.row order by x.registered_at desc)
+    from (
+      select i.registered_at, jsonb_build_object(
+        'code', i.code, 'title', i.title, 'category', i.category, 'priority', i.priority, 'status', i.status,
+        'location', i.location, 'incidentDate', i.incident_date, 'registeredAt', i.registered_at, 'updatedAt', i.updated_at,
+        'reporter', app.user_ref(i.reported_by), 'responsible', app.user_ref(i.responsible_id),
+        'pendingReassignment', i.pending_reassignment,
+        'targetHours', app.target_hours(i.priority),
+        'resolvedAt', r.registered_at,
+        'closedAt', c.closed_at,
+        'hoursToResolve', round((extract(epoch from (r.registered_at - i.registered_at)) / 3600.0)::numeric, 1),
+        'hoursToClose', round((extract(epoch from (c.closed_at - i.registered_at)) / 3600.0)::numeric, 1),
+        'ageHours', round((extract(epoch from (now() - i.registered_at)) / 3600.0)::numeric, 1),
+        'acta', (select jsonb_build_object('number', a.number, 'kind', a.kind)
+                 from app.actas a where a.incident_code = i.code and a.status = 'Vigente'
+                 order by a.seq desc limit 1),
+        'surveyRating', (select s.rating from app.surveys s where s.closure_id = c.id)
+      ) as row
+      from app.incidents i
+      left join lateral (select x.registered_at from app.resolutions x
+                         where x.incident_code = i.code and not x.superseded order by x.id desc limit 1) r on true
+      left join lateral (select x.id, x.closed_at from app.closures x
+                         where x.incident_code = i.code and not x.superseded order by x.id desc limit 1) c on true
+      where (p_from is null or (i.registered_at at time zone 'America/Lima')::date >= p_from)
+        and (p_to is null or (i.registered_at at time zone 'America/Lima')::date <= p_to)
+    ) x
+  ), '[]'::jsonb);
+end;
+$$;
+
+-- =====================================================================
 -- Permisos de ejecución: solo las RPC públicas son invocables
 -- =====================================================================
 do $$
@@ -1896,7 +1948,7 @@ begin
     'evidence_begin', 'evidence_chunk', 'evidence_finish', 'evidence_chunk_get', 'evidence_void',
     'list_users', 'create_user', 'update_user', 'set_user_status', 'reset_user_password',
     'list_audit', 'list_notifications', 'mark_notifications_read',
-    'get_acta', 'verify_acta', 'submit_survey', 'log_perf', 'perf_stats', 'quality_stats'
+    'get_acta', 'verify_acta', 'submit_survey', 'log_perf', 'perf_stats', 'quality_stats', 'report_incidents'
   ] loop
     for r in
       select p.oid::regprocedure as sig

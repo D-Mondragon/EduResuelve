@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import type { IncidentAction, IncidentSummary } from '../types/incident'
 import { followUpEvent, formatDuration, institutionName, personLabel, verifyUrl } from './acta'
 import { toCsv } from './csv'
+import { byCategory, byLocation, byMonth, byResponsible, median, monthLabel, pct, pending, summarize, unassignedOpen } from './reports'
+import type { ReportRow } from '../types/report'
 import { PERF_MAX_PER_SEND, PERF_MAX_QUEUE, PerfBuffer } from './perf'
 import { base64ToBytes, bytesToBase64, detectMime, MAX_FILE_BYTES, prepareFile, splitIntoChunks } from './files'
 import { formatBytes, formatDate, formatDateTime, todayInLima } from './format'
@@ -206,5 +208,56 @@ describe('Tiempos de respuesta (RNF-001)', () => {
     expect(buffer.size).toBe(PERF_MAX_QUEUE)
     await buffer.flush()
     expect(sizes).toEqual([PERF_MAX_PER_SEND])
+  })
+})
+
+describe('Reportes', () => {
+  const user = (id: string, fullName: string) => ({ id, fullName, role: 'Docente' as const, email: '', status: 'Activo' as const })
+  const row = (over: Partial<ReportRow>): ReportRow => ({
+    code: 'ER-2026-0001', title: 'T', category: 'Convivencia', priority: 'Media', status: 'Cerrado', location: 'Aula 1',
+    incidentDate: '2026-09-01', registeredAt: '2026-09-01T15:00:00Z', updatedAt: '2026-09-02T15:00:00Z',
+    reporter: null, responsible: user('a', 'Ana'), pendingReassignment: false, targetHours: 168,
+    resolvedAt: null, closedAt: null, hoursToResolve: 24, hoursToClose: 30, ageHours: 500, acta: null, surveyRating: null,
+    ...over,
+  })
+
+  it('CP-UI-24: resume totales, abiertas, vencidas, % en meta, mediana y satisfacción', () => {
+    const rows = [
+      row({ hoursToResolve: 24, surveyRating: 5 }),
+      row({ hoursToResolve: 200, surveyRating: 3 }), // fuera de meta (168 h)
+      row({ status: 'En atención', hoursToResolve: null, ageHours: 300 }), // abierta y vencida
+      row({ status: 'Asignado', hoursToResolve: null, ageHours: 10 }), // abierta en plazo
+      row({ status: 'Descartado', hoursToResolve: null }),
+    ]
+    expect(summarize(rows)).toEqual({
+      total: 5, open: 2, overdue: 1, resolved: 2, closed: 2, discarded: 1,
+      withinTargetPct: 50, avgHoursToResolve: 112, medianHoursToResolve: 112, avgRating: 4, ratings: 2,
+    })
+    expect(median([])).toBeNull()
+    expect(pct(0, 0)).toBeNull()
+  })
+
+  it('CP-UI-25: agrupa por mes (hora de Lima), responsable, categoría y lugar', () => {
+    const rows = [
+      row({ registeredAt: '2026-10-01T03:00:00Z' }), // 30 de setiembre en Lima
+      row({ registeredAt: '2026-10-15T15:00:00Z', responsible: user('b', 'Bruno'), status: 'En atención', hoursToResolve: null }),
+      row({ registeredAt: '2026-10-20T15:00:00Z', responsible: null, status: 'Nuevo', hoursToResolve: null, location: 'Patio', category: 'Académica' }),
+    ]
+    expect(byMonth(rows).map((m) => [m.key, m.total])).toEqual([['2026-10', 2], ['2026-09', 1]])
+    expect(monthLabel('2026-09')).toBe('Setiembre de 2026')
+    expect(byResponsible(rows).map((r) => [r.name, r.total, r.open])).toEqual([['Bruno', 1, 1], ['Ana', 1, 0]])
+    expect(unassignedOpen(rows)).toBe(1)
+    expect(byCategory(rows).find((c) => c.category === 'Académica')?.total).toBe(1)
+    expect(byCategory(rows)).toHaveLength(5)
+    expect(byLocation(rows)[0]).toEqual({ location: 'Aula 1', total: 2, open: 1, topCategory: 'Convivencia' })
+  })
+
+  it('CP-UI-26: pendientes ordenadas por la proporción de la meta consumida', () => {
+    const rows = [
+      row({ code: 'A', status: 'Asignado', priority: 'Baja', targetHours: 360, ageHours: 180 }), // 50 %
+      row({ code: 'B', status: 'Nuevo', priority: 'Crítica', targetHours: 24, ageHours: 48 }), // 200 %, vencida
+      row({ code: 'C', status: 'Cerrado' }),
+    ]
+    expect(pending(rows).map((r) => [r.code, r.targetUsedPct, r.overdue])).toEqual([['B', 200, true], ['A', 50, false]])
   })
 })

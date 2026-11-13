@@ -5,7 +5,11 @@ export const auditModules = [
   'Evidencias',
   'Resolución',
   'Cierre',
+  'Actas',
+  'Encuestas',
+  'Reportes',
   'Usuarios',
+  'Sistema',
 ] as const
 export type AuditModule = (typeof auditModules)[number]
 

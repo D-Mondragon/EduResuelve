@@ -20,6 +20,7 @@ import IncidentsPage from '../pages/IncidentsPage'
 import LoginPage from '../pages/LoginPage'
 import NotFoundPage from '../pages/NotFoundPage'
 import QualityPage from '../pages/QualityPage'
+import ReportsPage from '../pages/ReportsPage'
 import UsersPage from '../pages/UsersPage'
 import VerifyActaPage from '../pages/VerifyActaPage'
 import type { UserRole } from '../types/user'
@@ -91,6 +92,14 @@ export function AppRoutes() {
               </RequireRole>
             }
             path="/usuarios"
+          />
+          <Route
+            element={
+              <RequireRole roles={['Orientador', 'Administrador']}>
+                <ReportsPage />
+              </RequireRole>
+            }
+            path="/reportes"
           />
           <Route
             element={
