@@ -9,6 +9,11 @@ export function canManageUsers(role: UserRole | undefined): boolean {
   return role === 'Administrador'
 }
 
+/** Panel de calidad: Orientación y Administración. */
+export function canViewQuality(role: UserRole | undefined): boolean {
+  return isManager(role)
+}
+
 export function canViewAudit(role: UserRole | undefined): boolean {
   return role === 'Administrador'
 }

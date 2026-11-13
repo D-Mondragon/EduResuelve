@@ -1,5 +1,5 @@
 import type { Acta, ActaVerification } from '../types/acta'
-import type { PerfStats } from '../types/quality'
+import type { PerfStats, QualityStats } from '../types/quality'
 import type { AuditLog, NotificationList } from '../types/audit'
 import type {
   IncidentDetail,
@@ -220,6 +220,7 @@ export const api = {
 
   // Métricas de calidad
   perfStats: (days = 30) => authed<PerfStats>('perf_stats', { p_days: days }),
+  qualityStats: () => authed<QualityStats>('quality_stats'),
 
   // Auditoría y notificaciones
   listAudit: () => authed<AuditLog[]>('list_audit'),

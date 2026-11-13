@@ -29,3 +29,46 @@ export interface PerfStats {
   byOperation: PerfOperation[]
   byDevice: PerfDevice[]
 }
+
+/** Indicadores del panel de calidad, calculados por quality_stats. */
+export interface PriorityResolution {
+  priority: 'Crítica' | 'Alta' | 'Media' | 'Baja'
+  targetHours: number
+  resolved: number
+  avgHoursToResolve: number | null
+  medianHoursToResolve: number | null
+  withinTargetPct: number | null
+  closed: number
+  avgHoursToClose: number | null
+  medianHoursToClose: number | null
+  open: number
+  overdueOpen: number
+  overdueCodes: string[]
+}
+
+export interface DataQualityCheck {
+  dimension: 'Integridad' | 'Consistencia' | 'Unicidad' | 'Actualización' | 'Completitud'
+  check: string
+  severity: 'error' | 'warning' | 'info'
+  total: number
+  affected: number
+  okPct: number
+  codes: string[]
+}
+
+export interface QualityStats {
+  generatedAt: string
+  totals: { incidents: number; open: number; resolved: number; closed: number; discarded: number }
+  resolution: { withinTargetPct: number | null; byPriority: PriorityResolution[] }
+  dataQuality: { score: number | null; checks: DataQualityCheck[] }
+  satisfaction: {
+    responses: number
+    pending: number
+    avgRating: number | null
+    csatPct: number | null
+    avgSpeed: number | null
+    lowCount: number
+    resolved: { Sí: number; Parcialmente: number; No: number }
+    ratingDistribution: { rating: number; count: number }[]
+  }
+}
