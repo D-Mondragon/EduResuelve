@@ -1,5 +1,5 @@
-import { ArrowLeft, FileDown, ShieldCheck } from 'lucide-react'
-import { useCallback, type ReactNode } from 'react'
+import { ArrowLeft, ExternalLink, FileDown, ShieldCheck } from 'lucide-react'
+import { lazy, Suspense, useCallback, type ReactNode } from 'react'
 import { useParams, useSearchParams } from 'react-router'
 import { useAuth } from '../auth/authContext'
 import { Logo } from '../components/Logo'
@@ -12,6 +12,9 @@ import { api } from '../lib/api'
 import { formatBytes, formatDate, formatDateTime } from '../lib/format'
 import { cn } from '../lib/ui'
 import type { Acta } from '../types/acta'
+
+// El generador de QR solo se descarga al abrir un acta (no engrosa el resto de la app)
+const QrCode = lazy(() => import('../components/QrCode').then((m) => ({ default: m.QrCode })))
 
 /* El acta se dibuja siempre como una hoja blanca (también en modo oscuro), igual que al imprimirla. */
 
@@ -55,6 +58,7 @@ function ActaDocument({ acta, viewer }: { acta: Acta; viewer: string }) {
   const full = acta.version === 'Completa'
   const replaced = acta.status === 'Reemplazada'
   const code = acta.verificationCode
+  const link = verifyUrl(code)
 
   return (
     <article
@@ -259,24 +263,50 @@ function ActaDocument({ acta, viewer }: { acta: Acta; viewer: string }) {
       </section>
 
       {/* Pie de verificación */}
-      <footer className="mt-8 break-inside-avoid rounded-md border border-slate-300 p-3 text-xs leading-5 text-slate-600">
-        <p className="flex items-center gap-1.5 font-semibold text-slate-800">
-          <ShieldCheck aria-hidden="true" className="size-4 text-emerald-700" />
-          Código de verificación: <span className="font-mono text-sm tracking-wider text-slate-900">{code}</span>
-        </p>
-        <p className="mt-1">
-          Comprueba la autenticidad de este documento en <span className="break-all font-medium">{verifyUrl(code)}</span>.
-          Huella SHA-256 del contenido: <span className="font-mono">{acta.contentHash.slice(0, 16)}…</span>
-        </p>
-        {replaced && (
-          <p className="mt-1 font-semibold text-rose-700">
-            Esta acta fue reemplazada el {formatDateTime(acta.replacedAt)}. {acta.replacedReason}
+      <footer className="mt-8 flex break-inside-avoid flex-col-reverse gap-3 rounded-md border border-slate-300 p-3 text-xs leading-5 text-slate-600 sm:flex-row sm:items-start print:flex-row print:items-start">
+        <div className="min-w-0 flex-1">
+          <p className="flex flex-wrap items-center gap-x-1.5 font-semibold text-slate-800">
+            <ShieldCheck aria-hidden="true" className="size-4 text-emerald-700" />
+            Código de verificación: <span className="font-mono text-sm tracking-wider text-slate-900">{code}</span>
           </p>
-        )}
-        <p className="mt-1">
-          Generado por EduResuelve el {formatDateTime(new Date().toISOString())} a solicitud de {viewer}.
-          {!full && ' Versión resumida: omite observaciones internas y datos de terceros.'}
-        </p>
+          <p className="mt-1">
+            Comprueba la autenticidad de este documento escaneando el código QR o en{' '}
+            <a
+              className="break-all font-medium text-emerald-800 underline underline-offset-2 hover:text-emerald-900 print:text-slate-700 print:no-underline"
+              href={link}
+              rel="noopener"
+              target="_blank"
+            >
+              {link}
+              <span className="sr-only"> (abre en una pestaña nueva)</span>
+            </a>
+            . Huella SHA-256 del contenido: <span className="font-mono">{acta.contentHash.slice(0, 16)}…</span>
+          </p>
+          {replaced && (
+            <p className="mt-1 font-semibold text-rose-700">
+              Esta acta fue reemplazada el {formatDateTime(acta.replacedAt)}. {acta.replacedReason}
+            </p>
+          )}
+          <p className="mt-1">
+            Generado por EduResuelve el {formatDateTime(new Date().toISOString())} a solicitud de {viewer}.
+            {!full && ' Versión resumida: omite observaciones internas y datos de terceros.'}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-3 sm:flex-col sm:gap-1 print:flex-col print:gap-1">
+          <Suspense fallback={<div aria-hidden="true" className="size-24 sm:size-28 print:size-[30mm]" />}>
+            <QrCode className="size-24 sm:size-28 print:size-[30mm]" label={`Código QR para verificar el acta ${code}`} value={link} />
+          </Suspense>
+          <a
+            className="inline-flex items-center gap-1 font-medium text-emerald-800 hover:underline print:hidden"
+            href={link}
+            rel="noopener"
+            target="_blank"
+          >
+            <ExternalLink aria-hidden="true" className="size-3.5" />
+            Verificar acta
+          </a>
+          <span className="hidden text-[10px] text-slate-500 print:block">Escanea para verificar</span>
+        </div>
       </footer>
     </article>
   )

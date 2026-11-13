@@ -40,6 +40,28 @@ test.describe('Acta de resolución (RN-011)', () => {
     await expect(page.getByRole('article')).toBeVisible()
   })
 
+  test('E2E-ACT-06: el acta trae un código QR y el enlace "Verificar acta" que lleva a la verificación pública', async ({ page }) => {
+    await login(page, USERS.admin.dni)
+    await page.goto('/incidencias/ER-2026-0004/acta/ACT-2026-0004-02')
+    const acta = page.getByRole('article')
+    const code = (await acta.getByText(/^[0-9A-F]{4}(-[0-9A-F]{4}){3}$/).first().innerText()).trim()
+    await expect(acta.getByRole('img', { name: `Código QR para verificar el acta ${code}` })).toBeVisible()
+    const link = acta.getByRole('link', { name: 'Verificar acta' })
+    expect(await link.getAttribute('href')).toMatch(new RegExp(`/verificar[?]codigo=${code}$`))
+    await expect(link).toHaveAttribute('target', '_blank')
+
+    // Al imprimir: el QR se mantiene y el botón se oculta (en papel no se puede pulsar)
+    await page.emulateMedia({ media: 'print' })
+    await expect(acta.getByRole('img', { name: /Código QR/ })).toBeVisible()
+    await expect(link).toBeHidden()
+    await page.emulateMedia({ media: 'screen' })
+
+    // Seguir el enlace (sin sesión, como quien escanea el QR) confirma el acta
+    const [verify] = await Promise.all([page.context().waitForEvent('page'), link.click()])
+    await expect(verify.getByText('Acta auténtica y vigente')).toBeVisible()
+    await expect(verify.getByText('ACT-2026-0004-02')).toBeVisible()
+  })
+
   test('E2E-ACT-03: el estudiante que registró ve la versión resumida, sin terceros ni observaciones internas', async ({ page }) => {
     await login(page, USERS.estudiante2.dni)
     await page.goto('/incidencias/ER-2026-0004/acta/ACT-2026-0004-02')
