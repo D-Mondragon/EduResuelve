@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 import { login, logout, PASSWORD, USERS } from './helpers'
 
 const API = 'http://localhost:54330/rest/v1/rpc'
