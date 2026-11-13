@@ -66,10 +66,64 @@ body {
     size: A4;
     margin: 14mm 14mm 16mm;
   }
-  body {
-    background: #fff;
+  /* Página horizontal para reportes con muchas columnas (Auditoría, Reportes) */
+  @page horizontal {
+    size: A4 landscape;
+    margin: 12mm;
+  }
+  .print-landscape {
+    page: horizontal;
+  }
+  body,
+  .bg-canvas {
+    background: #fff !important;
     color: #000;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+
+  /* Las tablas se ajustan al ancho de la hoja: sin anchos mínimos ni recortes */
+  table {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+  .overflow-x-auto,
+  .overflow-hidden:not(.acta-sheet) {
+    overflow: visible !important;
+  }
+  th,
+  td {
+    white-space: normal !important;
+    overflow-wrap: break-word;
+  }
+  th {
+    padding: 4pt 5pt !important;
+    font-size: 7.5pt !important;
+  }
+  td {
+    padding: 4pt 5pt !important;
+    font-size: 8.5pt !important;
+  }
+  td *,
+  th * {
+    white-space: normal !important;
+  }
+  /* Insignias y códigos: no partir palabras */
+  td .rounded-full,
+  td .font-mono {
+    white-space: nowrap !important;
+  }
+  td [role='meter'],
+  td .min-w-32 {
+    min-width: 0 !important;
+  }
+  tr {
+    break-inside: avoid;
+  }
+  thead {
+    display: table-header-group;
+  }
+  .shadow-sm {
+    box-shadow: none !important;
   }
 }
