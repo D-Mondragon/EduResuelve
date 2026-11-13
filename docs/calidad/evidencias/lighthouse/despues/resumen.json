@@ -1,0 +1,272 @@
+{
+  "date": "2026-11-13T03:12:13.733Z",
+  "base": "https://eduresuelve.vercel.app",
+  "lighthouse": "13.6.0",
+  "rows": [
+    {
+      "formFactor": "desktop",
+      "page": "login",
+      "path": "/login",
+      "finalUrl": "https://eduresuelve.vercel.app/login",
+      "performance": 99,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 100,
+      "fcpMs": 600,
+      "lcpMs": 600,
+      "tbtMs": 59,
+      "cls": 0,
+      "siMs": 1183,
+      "transferKb": 145,
+      "failedAudits": [
+        "unused-javascript (50)",
+        "bf-cache (0)",
+        "forced-reflow-insight (0)",
+        "network-dependency-tree-insight (0)",
+        "render-blocking-insight (50)"
+      ]
+    },
+    {
+      "formFactor": "desktop",
+      "page": "verificar",
+      "path": "/verificar",
+      "finalUrl": "https://eduresuelve.vercel.app/verificar",
+      "performance": 100,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 100,
+      "fcpMs": 210,
+      "lcpMs": 210,
+      "tbtMs": 0,
+      "cls": 0,
+      "siMs": 243,
+      "transferKb": 1,
+      "failedAudits": [
+        "bf-cache (0)",
+        "network-dependency-tree-insight (0)",
+        "render-blocking-insight (50)"
+      ]
+    },
+    {
+      "formFactor": "mobile",
+      "page": "login",
+      "path": "/login",
+      "finalUrl": "https://eduresuelve.vercel.app/login",
+      "performance": 100,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 100,
+      "fcpMs": 760,
+      "lcpMs": 760,
+      "tbtMs": 14,
+      "cls": 0,
+      "siMs": 760,
+      "transferKb": 0,
+      "failedAudits": [
+        "bf-cache (0)",
+        "network-dependency-tree-insight (0)",
+        "render-blocking-insight (50)"
+      ]
+    },
+    {
+      "formFactor": "mobile",
+      "page": "verificar",
+      "path": "/verificar",
+      "finalUrl": "https://eduresuelve.vercel.app/verificar",
+      "performance": 100,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 100,
+      "fcpMs": 759,
+      "lcpMs": 759,
+      "tbtMs": 0,
+      "cls": 0,
+      "siMs": 759,
+      "transferKb": 0,
+      "failedAudits": [
+        "bf-cache (0)",
+        "network-dependency-tree-insight (0)",
+        "render-blocking-insight (50)"
+      ]
+    },
+    {
+      "formFactor": "desktop",
+      "page": "inicio",
+      "path": "/dashboard",
+      "finalUrl": "https://eduresuelve.vercel.app/dashboard",
+      "performance": 100,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 63,
+      "fcpMs": 210,
+      "lcpMs": 605,
+      "tbtMs": 0,
+      "cls": 0,
+      "siMs": 565,
+      "transferKb": 8,
+      "failedAudits": [
+        "is-crawlable (0)",
+        "bf-cache (0)",
+        "network-dependency-tree-insight (0)",
+        "render-blocking-insight (50)"
+      ]
+    },
+    {
+      "formFactor": "desktop",
+      "page": "incidencias",
+      "path": "/incidencias",
+      "finalUrl": "https://eduresuelve.vercel.app/incidencias",
+      "performance": 100,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 63,
+      "fcpMs": 210,
+      "lcpMs": 610,
+      "tbtMs": 0,
+      "cls": 0,
+      "siMs": 452,
+      "transferKb": 8,
+      "failedAudits": [
+        "is-crawlable (0)",
+        "bf-cache (0)",
+        "network-dependency-tree-insight (0)",
+        "render-blocking-insight (50)"
+      ]
+    },
+    {
+      "formFactor": "desktop",
+      "page": "detalle",
+      "path": "/incidencias/ER-2026-0004",
+      "finalUrl": "https://eduresuelve.vercel.app/incidencias/ER-2026-0004",
+      "performance": 100,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 63,
+      "fcpMs": 210,
+      "lcpMs": 599,
+      "tbtMs": 0,
+      "cls": 0,
+      "siMs": 509,
+      "transferKb": 5,
+      "failedAudits": [
+        "is-crawlable (0)",
+        "bf-cache (0)",
+        "network-dependency-tree-insight (0)",
+        "render-blocking-insight (50)"
+      ]
+    },
+    {
+      "formFactor": "desktop",
+      "page": "calidad",
+      "path": "/calidad",
+      "finalUrl": "https://eduresuelve.vercel.app/calidad",
+      "performance": 100,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 63,
+      "fcpMs": 209,
+      "lcpMs": 618,
+      "tbtMs": 0,
+      "cls": 0,
+      "siMs": 545,
+      "transferKb": 6,
+      "failedAudits": [
+        "is-crawlable (0)",
+        "bf-cache (0)",
+        "network-dependency-tree-insight (0)",
+        "render-blocking-insight (50)"
+      ]
+    },
+    {
+      "formFactor": "mobile",
+      "page": "inicio",
+      "path": "/dashboard",
+      "finalUrl": "https://eduresuelve.vercel.app/dashboard",
+      "performance": 99,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 63,
+      "fcpMs": 760,
+      "lcpMs": 1709,
+      "tbtMs": 94,
+      "cls": 0,
+      "siMs": 1126,
+      "transferKb": 7,
+      "failedAudits": [
+        "max-potential-fid (87)",
+        "is-crawlable (0)",
+        "bf-cache (0)",
+        "network-dependency-tree-insight (0)",
+        "render-blocking-insight (50)"
+      ]
+    },
+    {
+      "formFactor": "mobile",
+      "page": "incidencias",
+      "path": "/incidencias",
+      "finalUrl": "https://eduresuelve.vercel.app/incidencias",
+      "performance": 98,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 63,
+      "fcpMs": 759,
+      "lcpMs": 1716,
+      "tbtMs": 145,
+      "cls": 0,
+      "siMs": 982,
+      "transferKb": 7,
+      "failedAudits": [
+        "max-potential-fid (87)",
+        "is-crawlable (0)",
+        "bf-cache (0)",
+        "network-dependency-tree-insight (0)",
+        "render-blocking-insight (50)"
+      ]
+    },
+    {
+      "formFactor": "mobile",
+      "page": "detalle",
+      "path": "/incidencias/ER-2026-0004",
+      "finalUrl": "https://eduresuelve.vercel.app/incidencias/ER-2026-0004",
+      "performance": 100,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 63,
+      "fcpMs": 760,
+      "lcpMs": 1700,
+      "tbtMs": 21,
+      "cls": 0,
+      "siMs": 1091,
+      "transferKb": 4,
+      "failedAudits": [
+        "is-crawlable (0)",
+        "bf-cache (0)",
+        "network-dependency-tree-insight (0)",
+        "render-blocking-insight (50)"
+      ]
+    },
+    {
+      "formFactor": "mobile",
+      "page": "calidad",
+      "path": "/calidad",
+      "finalUrl": "https://eduresuelve.vercel.app/calidad",
+      "performance": 97,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 63,
+      "fcpMs": 760,
+      "lcpMs": 1721,
+      "tbtMs": 188,
+      "cls": 0,
+      "siMs": 1067,
+      "transferKb": 5,
+      "failedAudits": [
+        "max-potential-fid (85)",
+        "is-crawlable (0)",
+        "bf-cache (0)",
+        "network-dependency-tree-insight (0)",
+        "render-blocking-insight (50)"
+      ]
+    }
+  ]
+}

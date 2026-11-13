@@ -1,0 +1,52 @@
+{
+  "date": "2026-11-13T03:13:03.640Z",
+  "target": "Supabase Data API (RPC de solo lectura)",
+  "virtualUsers": 10,
+  "seconds": 31,
+  "throughputRps": 14,
+  "overall": {
+    "requests": 430,
+    "errors": 0,
+    "avgMs": 192,
+    "p50Ms": 177,
+    "p95Ms": 266,
+    "p99Ms": 612,
+    "maxMs": 664,
+    "underThresholdPct": 100
+  },
+  "byOperation": {
+    "list_incidents": {
+      "requests": 166,
+      "errors": 0,
+      "avgMs": 192,
+      "p50Ms": 180,
+      "p95Ms": 258,
+      "p99Ms": 663,
+      "maxMs": 664,
+      "underThresholdPct": 100
+    },
+    "get_incident": {
+      "requests": 171,
+      "errors": 0,
+      "avgMs": 190,
+      "p50Ms": 174,
+      "p95Ms": 280,
+      "p99Ms": 612,
+      "maxMs": 612,
+      "underThresholdPct": 100
+    },
+    "list_notifications": {
+      "requests": 93,
+      "errors": 0,
+      "avgMs": 196,
+      "p50Ms": 174,
+      "p95Ms": 515,
+      "p99Ms": 662,
+      "maxMs": 662,
+      "underThresholdPct": 100
+    }
+  },
+  "statusCodes": {
+    "200": 430
+  }
+}
