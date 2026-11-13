@@ -1,0 +1,12 @@
+# Archivos locales que no deben subirse en un despliegue con la CLI de Vercel
+**/.env
+**/.env.*
+!frontend/.env.example
+*.pdf
+**/node_modules
+**/dist
+**/coverage
+**/playwright-report
+**/test-results
+**/.local-db
+.vercel
