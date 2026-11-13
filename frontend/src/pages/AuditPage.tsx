@@ -80,7 +80,7 @@ function AuditPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="print-landscape space-y-6">
       <PageHeader
         actions={
           <>

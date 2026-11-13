@@ -16,8 +16,8 @@ import type { Acta } from '../types/acta'
 
 function Section({ number, title, children }: { number: number; title: string; children: ReactNode }) {
   return (
-    <section className="mt-7 break-inside-avoid-page">
-      <h2 className="flex items-center gap-2 border-b-2 border-emerald-700 pb-1 text-[0.95rem] font-bold uppercase tracking-wide text-emerald-800">
+    <section className="mt-7">
+      <h2 className="flex break-after-avoid items-center gap-2 border-b-2 border-emerald-700 pb-1 text-[0.95rem] font-bold uppercase tracking-wide text-emerald-800">
         <span className="flex size-6 items-center justify-center rounded-full bg-emerald-700 text-xs text-white">{number}</span>
         {title}
       </h2>
