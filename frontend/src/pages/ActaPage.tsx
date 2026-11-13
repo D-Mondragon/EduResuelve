@@ -30,11 +30,12 @@ function Section({ number, title, children }: { number: number; title: string; c
   )
 }
 
-function Field({ label, children, wide = false }: { label: string; children: ReactNode; wide?: boolean }) {
+/** wide: ocupa las dos columnas. prose: texto corrido (justificado); por defecto, los campos anchos. */
+function Field({ label, children, wide = false, prose = wide }: { label: string; children: ReactNode; wide?: boolean; prose?: boolean }) {
   return (
-    <div className={cn('min-w-0', wide && 'sm:col-span-2')}>
+    <div className={cn('min-w-0 break-inside-avoid', wide && 'sm:col-span-2')}>
       <dt className="text-[0.7rem] font-semibold uppercase tracking-wide text-slate-500">{label}</dt>
-      <dd className="mt-0.5 whitespace-pre-line break-words text-sm leading-6 text-slate-900">{children || '—'}</dd>
+      <dd className={cn('mt-0.5 whitespace-pre-line break-words text-sm leading-6 text-slate-900', prose && 'acta-prose')}>{children || '—'}</dd>
     </div>
   )
 }
@@ -63,7 +64,9 @@ function ActaDocument({ acta, viewer }: { acta: Acta; viewer: string }) {
   return (
     <article
       aria-label={`Acta ${acta.number}`}
-      className="acta-sheet relative mx-auto max-w-[210mm] overflow-hidden rounded-lg border border-slate-300 bg-white px-6 py-8 text-slate-900 shadow-sm sm:px-12 sm:py-10 print:max-w-none print:rounded-none print:border-0 print:p-0 print:shadow-none"
+      // En pantalla, la hoja reproduce los márgenes A4 del impreso (2,5 cm; 3 cm a la izquierda)
+      className="acta-sheet relative mx-auto max-w-[210mm] overflow-hidden rounded-lg border border-slate-300 bg-white px-6 py-8 text-slate-900 shadow-sm md:py-[25mm] md:pr-[25mm] md:pl-[30mm] print:max-w-none print:rounded-none print:border-0 print:p-0 print:shadow-none"
+      lang="es"
     >
       {replaced && (
         <div
@@ -105,7 +108,7 @@ function ActaDocument({ acta, viewer }: { acta: Acta; viewer: string }) {
         <span className="ml-auto font-semibold uppercase tracking-wide text-rose-700">Documento confidencial</span>
       </div>
 
-      <p className="mt-4 text-sm leading-6 text-slate-700">
+      <p className="acta-prose mt-4 text-sm leading-6 text-slate-700">
         Se deja constancia de la atención brindada a la incidencia <strong>{c.incident.code}</strong>, con el detalle
         de lo registrado en el sistema, las personas que intervinieron y las medidas adoptadas para su resolución.
       </p>
@@ -121,8 +124,8 @@ function ActaDocument({ acta, viewer }: { acta: Acta; viewer: string }) {
         </dl>
         <dl className="mt-3 grid grid-cols-1 gap-y-3">
           <Field label="Título">{c.incident.title}</Field>
-          <Field label="Descripción">{c.incident.description}</Field>
-          {full && c.incident.observations && <Field label="Observaciones del registro">{c.incident.observations}</Field>}
+          <Field label="Descripción" prose>{c.incident.description}</Field>
+          {full && c.incident.observations && <Field label="Observaciones del registro" prose>{c.incident.observations}</Field>}
         </dl>
       </Section>
 
@@ -244,7 +247,7 @@ function ActaDocument({ acta, viewer }: { acta: Acta; viewer: string }) {
             {full && <Field label="Observaciones de cierre" wide>{c.closure.observations || 'Sin observaciones.'}</Field>}
           </dl>
         ) : (
-          <p className="text-sm text-slate-700">
+          <p className="acta-prose text-sm text-slate-700">
             Pendiente de validación por Orientación o Administración. Esta acta será reemplazada por el acta definitiva
             al cerrarse la incidencia.
           </p>

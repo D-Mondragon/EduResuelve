@@ -7,6 +7,8 @@ import { login, USERS } from './helpers'
  */
 const A4_VERTICAL = 688
 const A4_HORIZONTAL = 1032
+// Acta: A4 con márgenes de 30 mm (izq.) y 25 mm (der.) → 155 mm de ancho útil ≈ 586 px
+const A4_ACTA = 586
 
 async function expectFitsPrintedPage(page: Page, width: number) {
   await page.setViewportSize({ width, height: 1000 })
@@ -57,6 +59,36 @@ test.describe('Impresión de reportes (PDF)', () => {
     await login(page, USERS.admin.dni)
     await page.goto('/incidencias/ER-2026-0004/acta/ACT-2026-0004-02')
     await page.getByRole('article').waitFor()
-    await expectFitsPrintedPage(page, A4_VERTICAL)
+    await expectFitsPrintedPage(page, A4_ACTA)
+  })
+
+  test('E2E-PRINT-05: el acta usa texto justificado y una hoja A4 con márgenes de documento formal', async ({ page }) => {
+    await login(page, USERS.admin.dni)
+    await page.goto('/incidencias/ER-2026-0004/acta/ACT-2026-0004-02')
+    const acta = page.getByRole('article')
+    await expect(acta).toHaveAttribute('lang', 'es')
+    await expect(acta.getByText(/^Se deja constancia/)).toHaveCSS('text-align', 'justify')
+    await expect(acta.getByText('La familia solicitó orientación', { exact: false })).toHaveCSS('text-align', 'justify')
+    // La regla @page del acta: A4, 25 mm y 30 mm a la izquierda, con numeración de páginas
+    const rule = await page.evaluate(() => {
+      for (const sheet of document.styleSheets) {
+        const find = (rules: CSSRuleList): string | null => {
+          for (const r of rules) {
+            if (r instanceof CSSPageRule && r.selectorText === 'acta') return r.cssText
+            if ('cssRules' in r && (r as CSSGroupingRule).cssRules) {
+              const found = find((r as CSSGroupingRule).cssRules)
+              if (found) return found
+            }
+          }
+          return null
+        }
+        const found = find(sheet.cssRules)
+        if (found) return found
+      }
+      return null
+    })
+    expect(rule?.toLowerCase()).toContain('size: a4')
+    expect(rule).toContain('margin: 25mm 25mm 25mm 30mm')
+    expect(rule).toContain('counter(pages)')
   })
 })
