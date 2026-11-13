@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 import { login, logout, USERS } from './helpers'
 
 // Usa los datos demo: ER-2026-0004 está Cerrada (acta definitiva) y ER-2026-0005 Resuelta (acta provisional).

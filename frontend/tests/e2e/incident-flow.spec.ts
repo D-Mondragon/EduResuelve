@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 import { createIncident, login, logout, USERS } from './helpers'
 
 test.describe.serial('Flujo completo de una incidencia', () => {

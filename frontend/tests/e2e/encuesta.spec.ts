@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 import { login, logout, USERS } from './helpers'
 
 // ER-2026-0004 (datos demo) está Cerrada: la registró Bruno, la atendió Fabián y la cerró Estela.
