@@ -1,6 +1,8 @@
 import {
   AlertTriangle,
   CalendarRange,
+  ChevronLeft,
+  ChevronRight,
   ClipboardList,
   Eye,
   FileChartColumn,
@@ -14,8 +16,8 @@ import {
   UserRoundSearch,
   type LucideIcon,
 } from 'lucide-react'
-import { useCallback, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
-import { Link } from 'react-router'
+import { useCallback, useMemo, useRef, type KeyboardEvent, type ReactNode } from 'react'
+import { Link, useSearchParams } from 'react-router'
 import { useCurrentUser } from '../auth/authContext'
 import { Badge, PriorityBadge, StatusBadge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
@@ -28,6 +30,10 @@ import { saveBlob } from '../lib/files'
 import { formatDate, formatDateTime, pluralize, todayInLima } from '../lib/format'
 import { formatHours, formatPct } from '../lib/quality'
 import {
+  DEFAULT_PAGE_SIZE,
+  PAGE_SIZES,
+  paginate,
+  type PageInfo,
   byCategory,
   byLocation,
   byMonth,
@@ -126,22 +132,72 @@ function Rating({ avg, count }: { avg: number | null; count: number }) {
   )
 }
 
-function ActaLink({ row }: { row: ReportRow }) {
+function ActaLink({ row, returnTo }: { row: ReportRow; returnTo: string }) {
   if (!row.acta) return <span className="text-muted">—</span>
-  const href = `/incidencias/${encodeURIComponent(row.code)}/acta/${encodeURIComponent(row.acta.number)}`
+  const href = `/incidencias/${encodeURIComponent(row.code)}/acta/${encodeURIComponent(row.acta.number)}?volver=${encodeURIComponent(returnTo)}`
   return (
-    <a
-      aria-label={`Ver acta ${row.acta.kind.toLowerCase()} ${row.acta.number} de ${row.code} (se abre en una pestaña nueva)`}
+    <Link
+      aria-label={`Ver acta ${row.acta.kind.toLowerCase()} ${row.acta.number} de ${row.code}`}
       className="inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-emerald-600 dark:text-emerald-400 dark:hover:bg-emerald-400/10"
-      href={href}
-      rel="noopener"
-      target="_blank"
       title={`Ver acta ${row.acta.kind.toLowerCase()} ${row.acta.number}`}
+      to={href}
     >
       <Eye aria-hidden="true" className="size-4 print:hidden" />
       <span className="print:hidden">{row.acta.kind === 'Definitiva' ? 'Definitiva' : 'Provisional'}</span>
       <span className="hidden font-mono text-xs print:inline">{row.acta.number}</span>
-    </a>
+    </Link>
+  )
+}
+
+/** Fila fuera de la página actual: oculta en pantalla, pero se imprime (el PDF incluye todo). */
+const pageRowClass = (index: number, info: PageInfo) => (index < info.start || index >= info.end ? 'hidden print:table-row' : '')
+
+function Pager({
+  info,
+  size,
+  label,
+  onStep,
+  onSize,
+}: {
+  info: PageInfo
+  size: number
+  label: string
+  onStep: (delta: number, totalPages: number) => void
+  onSize: (size: number) => void
+}) {
+  if (info.total === 0) return null
+  return (
+    <nav
+      aria-label={`Paginación de ${label}`}
+      className="flex flex-col gap-3 border-t border-line px-5 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 print:hidden"
+    >
+      <p aria-live="polite" className="text-sm text-muted">
+        Mostrando <span className="font-medium text-ink">{info.start + 1}–{info.end}</span> de{' '}
+        <span className="font-medium text-ink">{info.total}</span>
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="flex items-center gap-2 text-sm text-muted" htmlFor={`page-size-${label}`}>
+          Filas por página
+          <select className={cn(controlClass, 'w-auto py-1.5')} id={`page-size-${label}`} onChange={(e) => onSize(Number(e.target.value))} value={size}>
+            {PAGE_SIZES.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </label>
+        <Button disabled={info.page <= 1} icon={ChevronLeft} onClick={() => onStep(-1, info.totalPages)} size="sm" variant="secondary">
+          Anterior
+        </Button>
+        <span className="min-w-24 text-center text-sm tabular-nums text-ink-2">
+          Página {info.page} de {info.totalPages}
+        </span>
+        <Button disabled={info.page >= info.totalPages} onClick={() => onStep(1, info.totalPages)} size="sm" variant="secondary">
+          Siguiente
+          <ChevronRight aria-hidden="true" className="size-4" />
+        </Button>
+      </div>
+    </nav>
   )
 }
 
@@ -175,7 +231,6 @@ interface IncidentFilters {
   priority: string
   responsible: string
 }
-const emptyFilters: IncidentFilters = { search: '', status: '', category: '', priority: '', responsible: '' }
 
 function filterRows(rows: ReportRow[], f: IncidentFilters) {
   const term = f.search.trim().toLocaleLowerCase('es')
@@ -189,15 +244,15 @@ function filterRows(rows: ReportRow[], f: IncidentFilters) {
   )
 }
 
-function IncidentsView({ rows }: { rows: ReportRow[] }) {
+function IncidentsView({ rows, info, returnTo }: { rows: ReportRow[]; info: PageInfo; returnTo: string }) {
   return (
     <DataTable
       caption="Reporte de incidencias"
       head={['Código', 'Título', 'Prioridad', 'Estado', 'Acta', 'Categoría', 'Registro', 'Responsable', 'Resolución']}
       minWidth="64rem"
     >
-      {rows.map((r) => (
-        <tr className="hover:bg-surface-2" key={r.code}>
+      {rows.map((r, index) => (
+        <tr className={cn('hover:bg-surface-2', pageRowClass(index, info))} key={r.code}>
           <td className={td}>
             <CodeLink code={r.code} />
           </td>
@@ -209,7 +264,7 @@ function IncidentsView({ rows }: { rows: ReportRow[] }) {
             <StatusBadge status={r.status} />
           </td>
           <td className={cn(td, 'py-1')}>
-            <ActaLink row={r} />
+            <ActaLink returnTo={returnTo} row={r} />
           </td>
           <td className={cn(td, 'text-ink-2')}>{r.category}</td>
           <td className={cn(td, 'whitespace-nowrap text-ink-2')}>{formatDate(r.registeredAt.slice(0, 10))}</td>
@@ -336,19 +391,15 @@ function CategoryView({ rows }: { rows: ReportRow[] }) {
   )
 }
 
-function PendingView({ rows }: { rows: ReportRow[] }) {
-  const list = pending(rows)
-  if (list.length === 0) {
-    return <p className="p-5 text-sm text-muted sm:p-6">No hay incidencias abiertas en el periodo.</p>
-  }
+function PendingView({ list, info }: { list: ReturnType<typeof pending>; info: PageInfo }) {
   return (
     <DataTable
       caption="Incidencias pendientes ordenadas por urgencia"
       head={['Código', 'Título', 'Prioridad', 'Estado', 'Responsable', 'Antigüedad', 'Meta', 'Meta consumida', 'Situación']}
       minWidth="62rem"
     >
-      {list.map((r) => (
-        <tr key={r.code}>
+      {list.map((r, index) => (
+        <tr className={pageRowClass(index, info)} key={r.code}>
           <td className={td}>
             <CodeLink code={r.code} />
           </td>
@@ -424,15 +475,61 @@ function csvFor(tab: TabId, rows: ReportRow[]): { headers: string[]; data: Array
 
 /* -------------------------------- Página -------------------------------- */
 
+/** Parámetro de la URL de cada filtro: el estado del reporte vive en la URL. */
+const filterParam: Record<keyof IncidentFilters, string> = {
+  search: 'q',
+  status: 'estado',
+  category: 'categoria',
+  priority: 'prioridad',
+  responsible: 'responsable',
+}
+const presetIds: Preset[] = ['mes', '90', 'anio', 'todo', 'personalizado']
+
 function ReportsPage() {
   const me = useCurrentUser()
-  const [preset, setPreset] = useState<Preset>('anio')
-  const [range, setRange] = useState(() => presetRange('anio'))
-  const [tab, setTab] = useState<TabId>('incidencias')
-  const [filters, setFilters] = useState<IncidentFilters>(emptyFilters)
+  const [params, setParams] = useSearchParams()
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
 
-  const load = useCallback(() => api.reportIncidents(range.from, range.to), [range])
+  // Al volver de un acta, el reporte se recupera tal cual desde la URL
+  const tab = tabs.find((t) => t.id === params.get('vista'))?.id ?? 'incidencias'
+  const preset = presetIds.find((id) => id === params.get('periodo')) ?? 'anio'
+  const custom = preset === 'personalizado'
+  const from = custom ? (params.get('desde') ?? '') : presetRange(preset).from
+  const to = custom ? (params.get('hasta') ?? '') : presetRange(preset).to
+  const search = params.get('q') ?? ''
+  const status = params.get('estado') ?? ''
+  const category = params.get('categoria') ?? ''
+  const priority = params.get('prioridad') ?? ''
+  const responsible = params.get('responsable') ?? ''
+  const filters: IncidentFilters = { search, status, category, priority, responsible }
+  const requestedSize = Number(params.get('tam'))
+  const pageSize = (PAGE_SIZES as readonly number[]).includes(requestedSize) ? requestedSize : DEFAULT_PAGE_SIZE
+  const requestedPage = Number(params.get('pagina')) || 1
+  const query = params.toString()
+  const returnTo = `/reportes${query ? `?${query}` : ''}`
+
+  /** Cambia parámetros de la URL; salvo que se indique, vuelve a la página 1. */
+  const update = useCallback(
+    (changes: Record<string, string | null>, resetPage = true) =>
+      setParams(
+        (prev) => {
+          const next = new URLSearchParams(prev)
+          for (const [key, value] of Object.entries(changes)) {
+            if (value === null || value === '') next.delete(key)
+            else next.set(key, value)
+          }
+          if (resetPage) next.delete('pagina')
+          return next
+        },
+        { replace: true },
+      ),
+    [setParams],
+  )
+  const setTab = (id: TabId) => update({ vista: id === 'incidencias' ? null : id })
+  const setFilter = (key: keyof IncidentFilters, value: string) => update({ [filterParam[key]]: value })
+  const clearIncidentFilters = () => update(Object.fromEntries(Object.values(filterParam).map((k) => [k, null])))
+
+  const load = useCallback(() => api.reportIncidents(from, to), [from, to])
   const { data, error, loading, reload } = useAsync(load)
   const rows = useMemo(() => data ?? [], [data])
 
@@ -441,15 +538,36 @@ function ReportsPage() {
     for (const r of rows) if (r.responsible) map.set(r.responsible.id, r.responsible.fullName)
     return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]))
   }, [rows])
-  const visibleIncidents = useMemo(() => filterRows(rows, filters), [rows, filters])
+  const visibleIncidents = useMemo(
+    () => filterRows(rows, { search, status, category, priority, responsible }),
+    [rows, search, status, category, priority, responsible],
+  )
+  const pendingList = useMemo(() => pending(rows), [rows])
   const hasFilters = Object.values(filters).some(Boolean)
+  const incidentPage = paginate(visibleIncidents.length, requestedPage, pageSize)
+  const pendingPage = paginate(pendingList.length, requestedPage, pageSize)
+  const pagerProps = {
+    size: pageSize,
+    // Se calcula sobre la página actual de la URL: varios clics seguidos avanzan una página cada uno
+    onStep: (delta: number, totalPages: number) =>
+      setParams(
+        (prev) => {
+          const next = new URLSearchParams(prev)
+          const target = Math.min(Math.max(1, (Number(prev.get('pagina')) || 1) + delta), totalPages)
+          if (target > 1) next.set('pagina', String(target))
+          else next.delete('pagina')
+          return next
+        },
+        { replace: true },
+      ),
+    onSize: (size: number) => update({ tam: size === DEFAULT_PAGE_SIZE ? null : String(size) }),
+  }
   const summary = useMemo(() => summarize(rows), [rows])
   const current = tabs.find((t) => t.id === tab)!
   const exportRows = tab === 'incidencias' ? visibleIncidents : rows
 
   function choosePreset(next: Preset) {
-    setPreset(next)
-    if (next !== 'personalizado') setRange(presetRange(next))
+    update({ periodo: next === 'anio' ? null : next, desde: null, hasta: null })
   }
 
   function onTabKey(event: KeyboardEvent<HTMLButtonElement>, index: number) {
@@ -464,11 +582,11 @@ function ReportsPage() {
   function exportCsv() {
     const { headers, data: lines } = csvFor(tab, exportRows)
     const csv = toCsv(headers, lines)
-    saveBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `reporte-${tab}-${range.from || 'inicio'}-a-${range.to || todayInLima()}.csv`)
+    saveBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `reporte-${tab}-${from || 'inicio'}-a-${to || todayInLima()}.csv`)
   }
 
-  const periodText = range.from || range.to
-    ? `del ${range.from ? formatDate(range.from, 'long') : 'inicio'} al ${range.to ? formatDate(range.to, 'long') : 'hoy'}`
+  const periodText = from || to
+    ? `del ${from ? formatDate(from, 'long') : 'inicio'} al ${to ? formatDate(to, 'long') : 'hoy'}`
     : 'de todo el historial'
 
   return (
@@ -520,13 +638,10 @@ function ReportsPage() {
             <input
               className={controlClass}
               id="report-from"
-              max={range.to || undefined}
-              onChange={(e) => {
-                setPreset('personalizado')
-                setRange((r) => ({ ...r, from: e.target.value }))
-              }}
+              max={to || undefined}
+              onChange={(e) => update({ periodo: 'personalizado', desde: e.target.value, hasta: to })}
               type="date"
-              value={range.from}
+              value={from}
             />
           </div>
           <div>
@@ -536,13 +651,10 @@ function ReportsPage() {
             <input
               className={controlClass}
               id="report-to"
-              min={range.from || undefined}
-              onChange={(e) => {
-                setPreset('personalizado')
-                setRange((r) => ({ ...r, to: e.target.value }))
-              }}
+              min={from || undefined}
+              onChange={(e) => update({ periodo: 'personalizado', desde: from, hasta: e.target.value })}
               type="date"
-              value={range.to}
+              value={to}
             />
           </div>
         </div>
@@ -607,7 +719,7 @@ function ReportsPage() {
                 <CardHeader
                   description={
                     tab === 'incidencias'
-                      ? `${pluralize(visibleIncidents.length, 'incidencia', 'incidencias')} ${periodText}. El ojo abre el acta vigente en una pestaña nueva.`
+                      ? `${pluralize(visibleIncidents.length, 'incidencia', 'incidencias')} ${periodText}. El ojo abre el acta vigente; con «Volver a Reportes» regresas aquí.`
                       : tab === 'mensual'
                         ? 'Agrupado por el mes en que se registró cada incidencia.'
                         : tab === 'responsables'
@@ -631,7 +743,7 @@ function ReportsPage() {
                         <input
                           className={cn(controlClass, 'pl-9')}
                           id="report-search"
-                          onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
+                          onChange={(e) => setFilter('search', e.target.value)}
                           placeholder="Código, título o lugar…"
                           type="search"
                           value={filters.search}
@@ -650,7 +762,7 @@ function ReportsPage() {
                         <label className="mb-1.5 block text-xs font-medium text-muted" htmlFor={`report-${key}`}>
                           {label}
                         </label>
-                        <select className={controlClass} id={`report-${key}`} onChange={(e) => setFilters((f) => ({ ...f, [key]: e.target.value }))} value={filters[key]}>
+                        <select className={controlClass} id={`report-${key}`} onChange={(e) => setFilter(key, e.target.value)} value={filters[key]}>
                           <option value="">Todos</option>
                           {options.map(([value, text]) => (
                             <option key={value} value={value}>
@@ -661,7 +773,7 @@ function ReportsPage() {
                       </div>
                     ))}
                     <div className="flex items-end">
-                      <Button disabled={!hasFilters} icon={FilterX} onClick={() => setFilters(emptyFilters)} variant="ghost">
+                      <Button disabled={!hasFilters} icon={FilterX} onClick={clearIncidentFilters} variant="ghost">
                         Limpiar
                       </Button>
                     </div>
@@ -672,12 +784,23 @@ function ReportsPage() {
                   (visibleIncidents.length === 0 ? (
                     <p className="p-5 text-sm text-muted sm:p-6">Ninguna incidencia coincide con los filtros.</p>
                   ) : (
-                    <IncidentsView rows={visibleIncidents} />
+                    <>
+                      <IncidentsView info={incidentPage} returnTo={returnTo} rows={visibleIncidents} />
+                      <Pager info={incidentPage} label="incidencias" {...pagerProps} />
+                    </>
                   ))}
                 {tab === 'mensual' && <MonthlyView rows={rows} />}
                 {tab === 'responsables' && <ResponsibleView rows={rows} />}
                 {tab === 'categorias' && <CategoryView rows={rows} />}
-                {tab === 'pendientes' && <PendingView rows={rows} />}
+                {tab === 'pendientes' &&
+                  (pendingList.length === 0 ? (
+                    <p className="p-5 text-sm text-muted sm:p-6">No hay incidencias abiertas en el periodo.</p>
+                  ) : (
+                    <>
+                      <PendingView info={pendingPage} list={pendingList} />
+                      <Pager info={pendingPage} label="pendientes" {...pagerProps} />
+                    </>
+                  ))}
               </Card>
             )}
           </div>

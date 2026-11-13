@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { IncidentAction, IncidentSummary } from '../types/incident'
 import { followUpEvent, formatDuration, institutionName, personLabel, verifyUrl } from './acta'
 import { toCsv } from './csv'
-import { byCategory, byLocation, byMonth, byResponsible, median, monthLabel, pct, pending, summarize, unassignedOpen } from './reports'
+import { byCategory, byLocation, byMonth, byResponsible, median, monthLabel, paginate, pct, pending, safeReturnPath, summarize, unassignedOpen } from './reports'
 import type { ReportRow } from '../types/report'
 import { PERF_MAX_PER_SEND, PERF_MAX_QUEUE, PerfBuffer } from './perf'
 import { base64ToBytes, bytesToBase64, detectMime, MAX_FILE_BYTES, prepareFile, splitIntoChunks } from './files'
@@ -259,5 +259,24 @@ describe('Reportes', () => {
       row({ code: 'C', status: 'Cerrado' }),
     ]
     expect(pending(rows).map((r) => [r.code, r.targetUsedPct, r.overdue])).toEqual([['B', 200, true], ['A', 50, false]])
+  })
+})
+
+describe('Reportes: paginación y regreso', () => {
+  it('CP-UI-27: pagina, ajusta la página fuera de rango y calcula el rango visible', () => {
+    expect(paginate(46, 1, 25)).toEqual({ page: 1, totalPages: 2, start: 0, end: 25, total: 46 })
+    expect(paginate(46, 2, 25)).toEqual({ page: 2, totalPages: 2, start: 25, end: 46, total: 46 })
+    expect(paginate(46, 9, 25).page).toBe(2) // tras filtrar, la página 9 ya no existe
+    expect(paginate(0, 3, 10)).toEqual({ page: 1, totalPages: 1, start: 0, end: 0, total: 0 })
+    expect(paginate(5, Number.NaN, 10).page).toBe(1)
+  })
+
+  it('CP-UI-28: la ruta de regreso solo acepta Reportes (evita redirecciones a otros sitios)', () => {
+    expect(safeReturnPath('/reportes?vista=pendientes&pagina=2')).toBe('/reportes?vista=pendientes&pagina=2')
+    expect(safeReturnPath('/reportes')).toBe('/reportes')
+    expect(safeReturnPath('https://malicioso.com/reportes')).toBeNull()
+    expect(safeReturnPath('//malicioso.com')).toBeNull()
+    expect(safeReturnPath('/usuarios')).toBeNull()
+    expect(safeReturnPath(null)).toBeNull()
   })
 })
