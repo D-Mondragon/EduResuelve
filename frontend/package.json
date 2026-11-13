@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "dev:local": "node scripts/dev-local.mjs",
+    "dev:demo": "node scripts/dev-local.mjs --demo",
     "api:local": "node scripts/local-api.mjs",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
