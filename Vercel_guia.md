@@ -48,6 +48,10 @@ En la misma pantalla, despliega **Environment Variables** y agrega:
 Marca los entornos **Production**, **Preview** y **Development**.
 
 > ❌ Nunca pegues la `secret` / `service_role` key de Supabase.
+> ⚠️ **Usuarios demo en una URL pública:** con `VITE_SHOW_DEMO_USERS=true` cualquiera que tenga el enlace ve los DNI
+> demo y su contraseña, y puede entrar como Administrador. Está bien para la presentación (los datos son de
+> demostración), pero antes de usar datos reales pon `false`, cambia o desactiva los usuarios demo y vuelve a
+> desplegar.
 > ℹ️ Las variables `VITE_*` se insertan al **compilar**: si las cambias después, debes **volver a desplegar**
 > (paso 6).
 
@@ -66,7 +70,7 @@ Abre la URL y comprueba:
 
 - [ ] Carga la pantalla de **Iniciar sesión** (con el logo de EduResuelve).
 - [ ] Ingresas con DNI `70000007` / `EduResuelve2026` (Administrador).
-- [ ] El inicio muestra las 5 incidencias demo.
+- [ ] El inicio muestra las incidencias: 46 si cargaste `04_demo_ampliado.sql` (5 si solo ejecutaste `03_seed.sql`).
 - [ ] Abres `ER-2026-0003`, recargas la página (F5) y **no** aparece un 404.
 - [ ] Desde el celular: el menú ☰ abre la navegación y no hay desplazamiento horizontal.
 - [ ] Subes una imagen como evidencia y la puedes ver/descargar.
@@ -74,6 +78,9 @@ Abre la URL y comprueba:
 - [ ] Como Administrador abres `ER-2026-0004` → **Ver acta** → **Descargar PDF** genera el acta.
 - [ ] Abres `/verificar` (sin sesión), pegas el código del pie del acta y dice **Acta auténtica y vigente**.
   Esta página es pública: recargar `/verificar?codigo=…` tampoco debe dar 404.
+- [ ] Como Orientador (`70000005`) o Administrador, el menú muestra **Calidad** y el panel carga sus 4 indicadores.
+- [ ] Tras navegar unos minutos por la app publicada, el panel de Calidad → **Tiempos de respuesta** muestra
+  mediciones nuevas (la medición funciona en producción).
 
 ---
 
@@ -113,10 +120,12 @@ No requiere cambios en Supabase: la app llama a la API con la clave pública des
 cd frontend
 npm run dev          # desarrollo contra Supabase (usa .env.local)
 npm run dev:local    # desarrollo sin internet: API local (PGlite) + datos demo
+npm run dev:demo     # igual, con las 40 incidencias simuladas de 04_demo_ampliado.sql
 npm run build        # compila como lo hará Vercel
 npm run preview      # sirve la compilación en http://localhost:4173
 npm test             # pruebas de reglas SQL + interfaz (Vitest)
 npm run test:e2e     # pruebas end-to-end en navegador (Playwright)
+npm run test:coverage # cobertura de pruebas del frontend (informe en coverage/)
 ```
 
 ---
@@ -127,3 +136,4 @@ npm run test:e2e     # pruebas end-to-end en navegador (Playwright)
 - [ ] `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` configuradas
 - [ ] Despliegue exitoso y verificación de la sección 5 completa
 - [ ] URL compartida con el equipo / docente
+- [ ] Antes de usar datos reales: `VITE_SHOW_DEMO_USERS=false` y usuarios demo desactivados
