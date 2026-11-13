@@ -7,6 +7,14 @@ const PNG = Buffer.from(
   'base64',
 )
 
+// PDF válido mínimo de una página
+const PDF = Buffer.from(
+  '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n' +
+    '3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 300 144]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj\n' +
+    '4 0 obj<</Length 44>>stream\nBT /F1 18 Tf 40 70 Td (Informe de tutoria) Tj ET\nendstream endobj\n' +
+    '5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n',
+)
+
 test.describe.serial('Gestión de usuarios', () => {
   const dni = '71112222'
   let tempPassword = ''
@@ -122,6 +130,48 @@ test.describe('Evidencias', () => {
     await login(page, USERS.admin.dni)
     await page.goto('/incidencias/ER-2026-0004/evidencias')
     await expect(page.getByText('No se pueden agregar evidencias a incidencias cerradas.')).toBeVisible()
+  })
+
+  test('E2E-EVI-04: un PDF se ve dentro de la app, se abre en pestaña nueva y se descarga', async ({ page }) => {
+    // Chromium sin interfaz no trae visor de PDF; se simula un navegador de escritorio que sí lo tiene
+    await page.addInitScript(() => Object.defineProperty(navigator, 'pdfViewerEnabled', { get: () => true }))
+    await login(page, USERS.admin.dni)
+    await page.goto('/incidencias/ER-2026-0002/evidencias')
+    await page.locator('input[type=file]').setInputFiles({ name: 'informe-tutoria.pdf', mimeType: 'application/pdf', buffer: PDF })
+    await page.getByLabel('Descripción').fill('Informe de la tutoría')
+    await page.getByRole('button', { name: 'Subir evidencia' }).click()
+    await expect(page.getByText(/Evidencia ".+" agregada/)).toBeVisible()
+
+    // "Ver" abre el visor integrado del navegador dentro de la ventana
+    await page.getByRole('button', { name: 'Ver informe-tutoria.pdf' }).click()
+    const dialog = page.getByRole('dialog', { name: 'informe-tutoria.pdf' })
+    const viewer = dialog.locator('iframe[title="Vista del documento informe-tutoria.pdf"]')
+    await expect(viewer).toBeVisible()
+    await expect(viewer).toHaveAttribute('src', /^blob:/)
+
+    // Abrir en pestaña nueva: enlace al mismo archivo, en otra pestaña
+    const newTab = dialog.getByRole('link', { name: 'Abrir en pestaña nueva' })
+    await expect(newTab).toHaveAttribute('href', await viewer.getAttribute('src') as string)
+    await expect(newTab).toHaveAttribute('target', '_blank')
+
+    // Descargar desde el visor
+    const download = page.waitForEvent('download')
+    await dialog.getByRole('button', { name: 'Descargar' }).click()
+    expect((await download).suggestedFilename()).toBe('informe-tutoria.pdf')
+    await dialog.getByRole('button', { name: 'Cerrar' }).click()
+    await expect(dialog).toBeHidden()
+  })
+
+  test('E2E-EVI-05: si el navegador no muestra PDF dentro de la página, se ofrece abrirlo o descargarlo', async ({ page }) => {
+    await page.addInitScript(() => Object.defineProperty(navigator, 'pdfViewerEnabled', { get: () => false }))
+    await login(page, USERS.admin.dni)
+    await page.goto('/incidencias/ER-2026-0002/evidencias')
+    await page.getByRole('button', { name: 'Ver informe-tutoria.pdf' }).click()
+    const dialog = page.getByRole('dialog', { name: 'informe-tutoria.pdf' })
+    await expect(dialog.getByText('Tu navegador no muestra PDF dentro de la página')).toBeVisible()
+    await expect(dialog.locator('iframe')).toHaveCount(0)
+    await expect(dialog.getByRole('link', { name: 'Abrir en pestaña nueva' })).toBeVisible()
+    await expect(dialog.getByRole('button', { name: 'Descargar' })).toBeVisible()
   })
 })
 

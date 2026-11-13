@@ -1,6 +1,7 @@
 import {
   Ban,
   Download,
+  ExternalLink,
   Eye,
   FileImage,
   FileText,
@@ -19,6 +20,7 @@ import { Button } from '../components/ui/Button'
 import { Alert, Card, CardHeader, EmptyState, ErrorState, LoadingState } from '../components/ui/Feedback'
 import { Field, Select, Textarea } from '../components/ui/Field'
 import { Modal } from '../components/ui/Modal'
+import { buttonClass } from '../components/ui/buttonClass'
 import { useIncident } from '../hooks/useIncident'
 import { api, ApiError } from '../lib/api'
 import {
@@ -48,6 +50,38 @@ async function downloadEvidence(evidence: Evidence): Promise<Blob> {
     parts.push(base64ToBytes(await api.evidenceChunkGet(evidence.id, idx)))
   }
   return new Blob(parts, { type: evidence.mimeType })
+}
+
+type Preview = { url: string; blob: Blob; name: string; kind: 'image' | 'pdf' }
+
+/** ¿El navegador puede mostrar PDF dentro de la página? (algunos celulares no, y lo indican aquí) */
+function canShowPdfInline(): boolean {
+  try {
+    return navigator.pdfViewerEnabled !== false
+  } catch {
+    return true
+  }
+}
+
+/** Visor de evidencias: imágenes en la ventana; PDF con el visor integrado del navegador. */
+function EvidencePreview({ preview }: { preview: Preview }) {
+  if (preview.kind === 'image') {
+    return <img alt={preview.name} className="mx-auto max-h-[70vh] rounded-lg object-contain" src={preview.url} />
+  }
+  if (!canShowPdfInline()) {
+    return (
+      <Alert title="Tu navegador no muestra PDF dentro de la página" tone="info">
+        Ábrelo en una pestaña nueva o descárgalo con los botones de abajo.
+      </Alert>
+    )
+  }
+  return (
+    <iframe
+      className="h-[70vh] w-full rounded-lg border border-line bg-white"
+      src={preview.url}
+      title={`Vista del documento ${preview.name}`}
+    />
+  )
 }
 
 function UploadForm({ code, remaining, onUploaded }: { code: string; remaining: number; onUploaded: () => void }) {
@@ -254,7 +288,7 @@ function IncidentEvidencePage() {
   const { data: incident, error, loading, reload } = useIncident()
   const { notify } = useToast()
   const [busyId, setBusyId] = useState<number | null>(null)
-  const [preview, setPreview] = useState<{ url: string; name: string } | null>(null)
+  const [preview, setPreview] = useState<Preview | null>(null)
   const [voiding, setVoiding] = useState<Evidence | null>(null)
   const [voidReason, setVoidReason] = useState('')
   const [voidError, setVoidError] = useState('')
@@ -276,7 +310,10 @@ function IncidentEvidencePage() {
     setBusyId(evidence.id)
     try {
       const blob = await downloadEvidence(evidence)
-      if (mode === 'preview') setPreview({ url: URL.createObjectURL(blob), name: evidence.fileName })
+      if (mode === 'preview') {
+        const kind = evidence.mimeType === 'application/pdf' ? 'pdf' : 'image'
+        setPreview({ url: URL.createObjectURL(blob), blob, name: evidence.fileName, kind })
+      }
       else saveBlob(blob, evidence.fileName)
     } catch (caught) {
       notify(caught instanceof ApiError ? caught.message : 'No se pudo descargar el archivo.', 'error')
@@ -359,7 +396,7 @@ function IncidentEvidencePage() {
                     </div>
                     {!isVoid && (
                       <div className="flex shrink-0 flex-wrap gap-1.5">
-                        {evidence.mimeType.startsWith('image/') && (
+                        {(evidence.mimeType.startsWith('image/') || evidence.mimeType === 'application/pdf') && (
                           <Button
                             aria-label={`Ver ${evidence.fileName}`}
                             icon={Eye}
@@ -425,8 +462,31 @@ function IncidentEvidencePage() {
         </Card>
       </div>
 
-      <Modal onClose={() => setPreview(null)} open={preview !== null} size="lg" title={preview?.name ?? ''}>
-        {preview && <img alt={preview.name} className="mx-auto max-h-[70vh] rounded-lg object-contain" src={preview.url} />}
+      <Modal
+        footer={
+          preview && (
+            <>
+              <a
+                className={buttonClass('secondary', 'md')}
+                href={preview.url}
+                rel="noopener"
+                target="_blank"
+              >
+                <ExternalLink aria-hidden="true" className="size-4" />
+                Abrir en pestaña nueva
+              </a>
+              <Button icon={Download} onClick={() => saveBlob(preview.blob, preview.name)} variant="secondary">
+                Descargar
+              </Button>
+            </>
+          )
+        }
+        onClose={() => setPreview(null)}
+        open={preview !== null}
+        size={preview?.kind === 'pdf' ? 'xl' : 'lg'}
+        title={preview?.name ?? ''}
+      >
+        {preview && <EvidencePreview preview={preview} />}
       </Modal>
 
       <Modal
