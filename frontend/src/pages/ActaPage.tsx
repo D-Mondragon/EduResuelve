@@ -1,12 +1,13 @@
 import { ArrowLeft, FileDown, ShieldCheck } from 'lucide-react'
 import { useCallback, type ReactNode } from 'react'
-import { useParams } from 'react-router'
+import { useParams, useSearchParams } from 'react-router'
 import { useAuth } from '../auth/authContext'
 import { Logo } from '../components/Logo'
 import { Button, ButtonLink } from '../components/ui/Button'
 import { Alert, ErrorState, LoadingState } from '../components/ui/Feedback'
 import { useAsync } from '../hooks/useAsync'
 import { followUpEvent, formatDuration, institutionName, personLabel, verifyUrl } from '../lib/acta'
+import { safeReturnPath } from '../lib/reports'
 import { api } from '../lib/api'
 import { formatBytes, formatDate, formatDateTime } from '../lib/format'
 import { cn } from '../lib/ui'
@@ -286,7 +287,10 @@ function ActaPage() {
   const { user } = useAuth()
   const load = useCallback(() => api.getActa(number), [number])
   const { data: acta, error, loading, reload } = useAsync(load)
-  const back = `/incidencias/${encodeURIComponent(code)}`
+  const [search] = useSearchParams()
+  const fromReports = safeReturnPath(search.get('volver'))
+  const incidentPath = `/incidencias/${encodeURIComponent(code)}`
+  const back = fromReports ?? incidentPath
 
   if (loading && !acta) return <LoadingState label="Preparando el acta…" />
   if (error || !acta) return <ErrorState error={error ?? new Error('Acta no encontrada.')} onRetry={() => reload()} />
@@ -294,9 +298,16 @@ function ActaPage() {
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between print:hidden">
-        <ButtonLink icon={ArrowLeft} to={back} variant="ghost">
-          Volver a {acta.incidentCode}
-        </ButtonLink>
+        <div className="flex flex-wrap items-center gap-1">
+          <ButtonLink icon={ArrowLeft} to={back} variant="ghost">
+            {fromReports ? 'Volver a Reportes' : `Volver a ${acta.incidentCode}`}
+          </ButtonLink>
+          {fromReports && (
+            <ButtonLink to={incidentPath} variant="ghost">
+              Ver incidencia {acta.incidentCode}
+            </ButtonLink>
+          )}
+        </div>
         <Button icon={FileDown} onClick={() => window.print()} title="Abre el diálogo de impresión: elige “Guardar como PDF”">
           Descargar PDF
         </Button>

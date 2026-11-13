@@ -125,3 +125,26 @@ export function pending(rows: ReportRow[]) {
     .map((r) => ({ ...r, targetUsedPct: Math.round((100 * r.ageHours) / r.targetHours), overdue: isOverdue(r) }))
     .sort((a, b) => b.targetUsedPct - a.targetUsedPct)
 }
+
+/* ------------------------------ Paginación ------------------------------ */
+
+export const PAGE_SIZES = [10, 25, 50] as const
+export const DEFAULT_PAGE_SIZE = 25
+
+/** Calcula la página visible (se ajusta si la página pedida ya no existe tras filtrar). */
+export function paginate(total: number, page: number, size: number) {
+  const totalPages = Math.max(1, Math.ceil(total / size))
+  const current = Math.min(Math.max(1, Math.floor(page) || 1), totalPages)
+  const start = (current - 1) * size
+  return { page: current, totalPages, start, end: Math.min(start + size, total), total }
+}
+export type PageInfo = ReturnType<typeof paginate>
+
+/**
+ * Ruta de regreso desde un acta. Solo se aceptan rutas internas de Reportes,
+ * para que el parámetro no pueda usarse para redirigir a otro sitio.
+ */
+export function safeReturnPath(value: string | null | undefined): string | null {
+  if (!value) return null
+  return /^\/reportes(\?[^#\s]*)?$/.test(value) ? value : null
+}

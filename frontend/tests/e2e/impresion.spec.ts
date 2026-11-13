@@ -46,6 +46,8 @@ test.describe('Impresión de reportes (PDF)', () => {
     await login(page, USERS.admin.dni)
     await page.goto('/reportes')
     await page.getByRole('button', { name: 'Todo' }).click()
+    await expect(page).toHaveURL(/periodo=todo/)
+    await expect(page.getByText('Preparando el reporte…')).toHaveCount(0)
     await expect(page.getByRole('table', { name: 'Reporte de incidencias' })).toBeVisible()
     expect(await page.locator('.print-landscape').count()).toBe(1)
     await expectFitsPrintedPage(page, A4_HORIZONTAL)
