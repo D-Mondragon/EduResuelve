@@ -21,10 +21,25 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
-  projects: [
-    { name: 'escritorio', use: { ...devices['Desktop Chrome'] }, testIgnore: /responsive\.spec\.ts/ },
-    { name: 'movil', use: { ...devices['Pixel 7'] }, testMatch: /responsive\.spec\.ts/ },
-  ],
+  // E2E_BROWSER=firefox|webkit|edge ejecuta toda la suite de escritorio en ese navegador (compatibilidad).
+  // Se usa desde scripts/e2e-browsers.mjs: cada navegador corre con una base de datos nueva.
+  projects: process.env.E2E_BROWSER
+    ? [
+        {
+          name: process.env.E2E_BROWSER,
+          use:
+            process.env.E2E_BROWSER === 'firefox'
+              ? { ...devices['Desktop Firefox'] }
+              : process.env.E2E_BROWSER === 'webkit'
+                ? { ...devices['Desktop Safari'] }
+                : { ...devices['Desktop Edge'], channel: 'msedge' },
+          testIgnore: /responsive\.spec\.ts/,
+        },
+      ]
+    : [
+        { name: 'escritorio', use: { ...devices['Desktop Chrome'] }, testIgnore: /responsive\.spec\.ts/ },
+        { name: 'movil', use: { ...devices['Pixel 7'] }, testMatch: /responsive\.spec\.ts/ },
+      ],
   webServer: [
     {
       // API local en memoria: cada ejecución parte de los datos demo

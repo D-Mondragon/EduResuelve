@@ -75,7 +75,7 @@ test.describe.serial('Gestión de usuarios', () => {
     await login(page, USERS.admin.dni)
     await page.goto('/usuarios')
     await page.locator('#user-search').fill('Bruno')
-    await page.getByRole('button', { name: 'Restablecer contraseña de Bruno Muestra' }).first().click()
+    await page.getByRole('button', { name: 'Restablecer clave de Bruno Muestra' }).first().click()
     const dialog = page.getByRole('dialog')
     await dialog.getByRole('button', { name: 'Restablecer' }).click()
     await expect(dialog.getByText('Contraseña restablecida')).toBeVisible()

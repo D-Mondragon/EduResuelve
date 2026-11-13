@@ -1,0 +1,7 @@
+# EduResuelve: solo las páginas públicas pueden indexarse.
+# Las pantallas internas contienen información de la institución y requieren sesión.
+User-agent: *
+Allow: /$
+Allow: /login
+Allow: /verificar
+Disallow: /
