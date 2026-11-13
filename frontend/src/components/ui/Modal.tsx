@@ -13,7 +13,7 @@ interface ModalProps {
   onClose: () => void
   children: ReactNode
   footer?: ReactNode
-  size?: 'md' | 'lg'
+  size?: 'md' | 'lg' | 'xl'
 }
 
 /** Diálogo accesible: atrapa el foco, cierra con Escape y lo devuelve al cerrar. */
@@ -74,7 +74,7 @@ export function Modal({ open, title, description, onClose, children, footer, siz
         aria-modal="true"
         className={cn(
           'relative flex max-h-[92vh] w-full flex-col rounded-t-2xl border border-line bg-surface shadow-2xl sm:rounded-2xl',
-          size === 'lg' ? 'sm:max-w-2xl' : 'sm:max-w-lg',
+          size === 'xl' ? 'sm:max-w-5xl' : size === 'lg' ? 'sm:max-w-2xl' : 'sm:max-w-lg',
         )}
         ref={panelRef}
         role="dialog"
