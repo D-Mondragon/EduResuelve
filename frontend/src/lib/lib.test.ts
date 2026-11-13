@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { IncidentAction, IncidentSummary } from '../types/incident'
 import { followUpEvent, formatDuration, institutionName, personLabel, verifyUrl } from './acta'
 import { toCsv } from './csv'
+import { qrPath } from './qr'
 import { byCategory, byLocation, byMonth, byResponsible, median, monthLabel, paginate, pct, pending, safeReturnPath, summarize, unassignedOpen } from './reports'
 import type { ReportRow } from '../types/report'
 import { PERF_MAX_PER_SEND, PERF_MAX_QUEUE, PerfBuffer } from './perf'
@@ -278,5 +279,23 @@ describe('Reportes: paginación y regreso', () => {
     expect(safeReturnPath('//malicioso.com')).toBeNull()
     expect(safeReturnPath('/usuarios')).toBeNull()
     expect(safeReturnPath(null)).toBeNull()
+  })
+})
+
+describe('Código QR del acta (RN-011)', () => {
+  it('CP-UI-29: genera un QR estándar, con sus tres marcas de posición y apto para imprimir a 30 mm', () => {
+    const url = verifyUrl('1A2B-3C4D-5E6F-7A8B', 'https://eduresuelve.vercel.app')
+    const { size, path } = qrPath(url)
+    // Tamaño válido de QR (21, 25, 29…) y como máximo versión 6 (41 módulos): cada módulo mide > 0,6 mm a 30 mm
+    expect((size - 17) % 4).toBe(0)
+    expect(size).toBeLessThanOrEqual(41)
+    const dark = new Set(path.match(/M\d+ \d+/g))
+    // Esquinas de las tres marcas de posición (arriba-izq., arriba-der., abajo-izq.)
+    expect(dark.has('M0 0')).toBe(true)
+    expect(dark.has(`M${size - 1} 0`)).toBe(true)
+    expect(dark.has(`M0 ${size - 1}`)).toBe(true)
+    // Es determinista: la misma acta siempre imprime el mismo código
+    expect(qrPath(url).path).toBe(path)
+    expect(qrPath(url + 'X').path).not.toBe(path)
   })
 })
