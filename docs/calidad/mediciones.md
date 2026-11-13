@@ -181,7 +181,7 @@ El diseño para celular se valida además con 3 pruebas en un Pixel 7 emulado (s
 Las librerías de lógica (`src/lib`) superan el 50 %; las pantallas tienen 0 % de cobertura **unitaria**.
 
 **Interpretación:** el número es bajo porque las pantallas se prueban con **47 pruebas E2E** en navegador real, y las
-reglas de negocio con **72 pruebas SQL** sobre la base de datos; ninguna de las dos se cuenta en esta métrica. Aun así,
+reglas de negocio con **78 pruebas SQL** sobre la base de datos; ninguna de las dos se cuenta en esta métrica. Aun así,
 la cobertura unitaria baja implica que un error en un componente se detecta tarde (en E2E, más lentas). → Plan de mejora.
 
 ---
