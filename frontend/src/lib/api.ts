@@ -1,4 +1,5 @@
 import type { Acta, ActaVerification } from '../types/acta'
+import type { CaseKind, CaseUpdate, FormalFormData } from '../types/case'
 import type { PerfStats, QualityStats } from '../types/quality'
 import type { ReportRow } from '../types/report'
 import type { AuditLog, NotificationList } from '../types/audit'
@@ -191,6 +192,16 @@ export const api = {
   close: (code: string, observations: string, confirm: boolean) =>
     authed<{ code: string }>('close_incident', { p_code: code, p_observations: observations, p_confirm: confirm }),
   assignableUsers: () => authed<UserRef[]>('list_assignable_users'),
+
+  // Registro formal y convivencia (D.S. 021-2026-MINEDU)
+  registerFormal: (code: string, data: FormalFormData) =>
+    authed<{ code: string }>('register_formal', { p_code: code, p_data: data }),
+  updateCase: (code: string, data: CaseUpdate) => authed<{ code: string }>('update_case', { p_code: code, p_data: data }),
+  acknowledgeDirector: (code: string) => authed<{ code: string }>('acknowledge_director', { p_code: code }),
+  caseSave: (code: string, kind: CaseKind, data: Record<string, unknown>) =>
+    authed<{ id: number }>('case_save', { p_code: code, p_kind: kind, p_data: data }),
+  caseRemove: (code: string, kind: CaseKind, id: number, reason: string) =>
+    authed<{ code: string }>('case_remove', { p_code: code, p_kind: kind, p_id: id, p_reason: reason }),
 
   // Evidencias
   evidenceBegin: (code: string, meta: Record<string, unknown>) =>

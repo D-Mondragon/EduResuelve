@@ -23,7 +23,8 @@ const db = await createDatabase(inMemory ? {} : { dataDir })
 // --demo: agrega las 40 incidencias simuladas de 04_demo_ampliado.sql (idempotente)
 if (process.argv.includes('--demo')) {
   await db.exec(readSql('04_demo_ampliado.sql'))
-  console.log('Datos de demostración ampliados cargados (40 incidencias simuladas).')
+  await db.exec(readSql('05_demo_convivencia.sql'))
+  console.log('Datos de demostración ampliados cargados (40 incidencias simuladas y 3 casos de convivencia).')
 }
 
 function statusFor(code) {

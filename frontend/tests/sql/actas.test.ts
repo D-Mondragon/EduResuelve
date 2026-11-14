@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { setupDb, type TestDb } from './helpers'
+import { formalData, setupDb, type TestDb } from './helpers'
 
 const resolution = {
   summary: 'Se selló la ventana del aula 4.',
@@ -76,6 +76,7 @@ describe('Actas de resolución (RN-011)', () => {
     let detail = await t.rpc('get_incident', { p_token: admin, p_code: 'ER-2026-0004' })
     expect(detail.actas.every((a: { status: string }) => a.status === 'Reemplazada')).toBe(true)
     expect(detail.actas[0].replacedReason).toContain('Nuevo pedido de la familia')
+    await t.rpc('register_formal', { p_token: admin, p_code: 'ER-2026-0004', p_data: formalData })
 
     for (const [action, extra] of [['assign', { p_responsible: '00000000-0000-4000-a000-000000000006' }], ['start', {}]] as const) {
       await t.rpc('transition_incident', { p_token: admin, p_code: 'ER-2026-0004', p_action: action, p_observation: 'Paso', ...extra })

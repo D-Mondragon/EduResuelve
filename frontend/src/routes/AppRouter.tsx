@@ -1,11 +1,10 @@
-import type { ReactNode } from 'react'
+import { lazy, Suspense, type ReactNode } from 'react'
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router'
 import { useAuth } from '../auth/authContext'
 import { AuthProvider } from '../auth/AuthProvider'
 import { LoadingState } from '../components/ui/Feedback'
 import { ToastProvider } from '../components/toast/ToastProvider'
 import MainLayout from '../layouts/MainLayout'
-import ActaPage from '../pages/ActaPage'
 import AuditPage from '../pages/AuditPage'
 import ChangePasswordPage from '../pages/ChangePasswordPage'
 import DashboardPage from '../pages/DashboardPage'
@@ -24,6 +23,14 @@ import ReportsPage from '../pages/ReportsPage'
 import UsersPage from '../pages/UsersPage'
 import VerifyActaPage from '../pages/VerifyActaPage'
 import type { UserRole } from '../types/user'
+
+// Pantallas pesadas que no todos usan: se descargan al abrirlas (bundle inicial < 500 kB)
+const ActaPage = lazy(() => import('../pages/ActaPage'))
+const IncidentCasePage = lazy(() => import('../pages/IncidentCasePage'))
+
+function Deferred({ children }: { children: ReactNode }) {
+  return <Suspense fallback={<LoadingState />}>{children}</Suspense>
+}
 
 /** Exige sesión iniciada; si la contraseña es temporal, obliga a cambiarla. */
 function RequireAuth() {
@@ -81,9 +88,10 @@ export function AppRoutes() {
           <Route element={<IncidentFormPage />} path="/incidencias/:code/editar" />
           <Route element={<IncidentFollowUpPage />} path="/incidencias/:code/seguimiento" />
           <Route element={<IncidentEvidencePage />} path="/incidencias/:code/evidencias" />
+          <Route element={<Deferred><IncidentCasePage /></Deferred>} path="/incidencias/:code/convivencia" />
           <Route element={<IncidentResolutionPage />} path="/incidencias/:code/resolucion" />
           <Route element={<IncidentClosurePage />} path="/incidencias/:code/cierre" />
-          <Route element={<ActaPage />} path="/incidencias/:code/acta/:number" />
+          <Route element={<Deferred><ActaPage /></Deferred>} path="/incidencias/:code/acta/:number" />
           <Route element={<IncidentSurveyPage />} path="/incidencias/:code/encuesta" />
           <Route
             element={

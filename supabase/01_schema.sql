@@ -270,6 +270,117 @@ create table if not exists app.perf_samples (
 );
 create index if not exists perf_samples_created_idx on app.perf_samples (created_at);
 
+-- ---------------------------------------------------------------------
+-- Registro formal y convivencia escolar
+-- D.S. 021-2026-MINEDU (anexo, 8.2 "Registro formal del incidente"; 9.1 reunión con la familia),
+-- R.M. 383-2025-MINEDU (protocolos de violencia, SíseVe) y Ley 29719 (Libro de Registro de Incidencias).
+-- Todos los campos son opcionales: las incidencias anteriores siguen siendo válidas.
+-- ---------------------------------------------------------------------
+alter table app.incidents add column if not exists regime text not null default 'Ninguno';
+alter table app.incidents add column if not exists incident_time time;
+alter table app.incidents add column if not exists immediate_actions text not null default '';
+alter table app.incidents add column if not exists formal_registered_by uuid references app.users (id);
+alter table app.incidents add column if not exists formal_registered_at timestamptz;
+alter table app.incidents add column if not exists severity text;
+alter table app.incidents add column if not exists director_notified_at timestamptz;
+alter table app.incidents add column if not exists director_ack_by uuid references app.users (id);
+alter table app.incidents add column if not exists director_ack_at timestamptz;
+alter table app.incidents add column if not exists violence_type text;
+alter table app.incidents add column if not exists violence_modality text;
+alter table app.incidents add column if not exists siseve_code text;
+alter table app.incidents add column if not exists book_folio text;
+
+alter table app.incidents drop constraint if exists incidents_regime_check;
+alter table app.incidents add constraint incidents_regime_check
+  check (regime in ('Ninguno', 'Disciplina', 'Violencia', 'Disciplina y violencia'));
+alter table app.incidents drop constraint if exists incidents_immediate_actions_check;
+alter table app.incidents add constraint incidents_immediate_actions_check check (length(immediate_actions) <= 1000);
+alter table app.incidents drop constraint if exists incidents_severity_check;
+alter table app.incidents add constraint incidents_severity_check
+  check (severity is null or severity in ('Leve', 'Grave', 'Muy grave'));
+alter table app.incidents drop constraint if exists incidents_violence_type_check;
+alter table app.incidents add constraint incidents_violence_type_check
+  check (violence_type is null or violence_type in ('Física', 'Psicológica', 'Sexual'));
+alter table app.incidents drop constraint if exists incidents_violence_modality_check;
+alter table app.incidents add constraint incidents_violence_modality_check
+  check (violence_modality is null or violence_modality in ('Entre estudiantes', 'Del personal de la IE hacia estudiantes'));
+alter table app.incidents drop constraint if exists incidents_siseve_code_check;
+alter table app.incidents add constraint incidents_siseve_code_check
+  check (siseve_code is null or length(siseve_code) between 1 and 40);
+alter table app.incidents drop constraint if exists incidents_book_folio_check;
+alter table app.incidents add constraint incidents_book_folio_check
+  check (book_folio is null or length(book_folio) between 1 and 40);
+
+-- Nuevos tipos de movimiento en el historial
+alter table app.follow_ups drop constraint if exists follow_ups_kind_check;
+alter table app.follow_ups add constraint follow_ups_kind_check
+  check (kind in ('Registro', 'Cambio de estado', 'Asignación', 'Reasignación', 'Edición', 'Observación', 'Evidencia',
+                  'Registro formal', 'Convivencia'));
+
+-- Estudiantes y testigos (lenguaje neutral: nunca "agresor" ni "víctima")
+create table if not exists app.case_participants (
+  id               bigserial primary key,
+  incident_code    text not null references app.incidents (code),
+  role             text not null check (role in ('Estudiante afectado', 'Estudiante involucrado', 'Testigo')),
+  full_name        text not null check (length(trim(full_name)) between 3 and 120),
+  dni              text check (dni is null or dni ~ '^[0-9]{8}$'),
+  grade_section    text not null default '' check (length(grade_section) <= 40),
+  -- Versión de los hechos (8.2): se consigna antes de decidir cualquier medida
+  statement        text not null default '' check (length(statement) <= 2000),
+  statement_status text not null default 'Pendiente' check (statement_status in ('Pendiente', 'Registrada', 'Se abstuvo')),
+  statement_by     text check (statement_by is null or statement_by in ('Estudiante', 'Padre, madre o apoderado')),
+  statement_at     timestamptz,
+  created_by       uuid not null references app.users (id),
+  created_at       timestamptz not null default now()
+);
+create index if not exists case_participants_incident_idx on app.case_participants (incident_code);
+
+-- Medidas: las leves las decide el docente u Orientación; las graves y muy graves, Dirección (D.S. 021-2026, IX)
+create table if not exists app.case_measures (
+  id             bigserial primary key,
+  incident_code  text not null references app.incidents (code),
+  participant_id bigint not null references app.case_participants (id) on delete cascade,
+  kind           text not null check (kind in ('Formativa', 'Correctiva', 'Disciplinaria')),
+  description    text not null check (length(trim(description)) between 1 and 1000),
+  is_separation  boolean not null default false,
+  decided_by     uuid not null references app.users (id),
+  decided_at     timestamptz not null default now()
+);
+create index if not exists case_measures_incident_idx on app.case_measures (incident_code);
+
+-- Reunión con la familia: acuerdos y compromisos verificables (9.1; R.M. 383-2025)
+create table if not exists app.case_meetings (
+  id               bigserial primary key,
+  incident_code    text not null references app.incidents (code),
+  meeting_date     date not null,
+  attendees        text not null check (length(trim(attendees)) between 1 and 300),
+  agreements       text not null check (length(trim(agreements)) between 1 and 2000),
+  signature_status text not null default 'Pendiente de firma'
+                   check (signature_status in ('Firmada', 'Se negó a firmar', 'Pendiente de firma')),
+  notes            text not null default '' check (length(notes) <= 1000),
+  created_by       uuid not null references app.users (id),
+  created_at       timestamptz not null default now()
+);
+create index if not exists case_meetings_incident_idx on app.case_meetings (incident_code);
+
+-- Derivaciones a otras instituciones (R.M. 383-2025)
+create table if not exists app.case_referrals (
+  id            bigserial primary key,
+  incident_code text not null references app.incidents (code),
+  entity        text not null check (entity in ('DEMUNA', 'UPE', 'PNP', 'Fiscalía', 'UGEL', 'Centro de salud', 'Otra')),
+  office_number text not null check (length(trim(office_number)) between 1 and 60),
+  referral_date date not null,
+  notes         text not null default '' check (length(notes) <= 500),
+  created_by    uuid not null references app.users (id),
+  created_at    timestamptz not null default now()
+);
+create index if not exists case_referrals_incident_idx on app.case_referrals (incident_code);
+
+alter table app.case_participants enable row level security;
+alter table app.case_measures enable row level security;
+alter table app.case_meetings enable row level security;
+alter table app.case_referrals enable row level security;
+
 -- Defensa en profundidad: RLS activo y sin políticas en todas las tablas.
 alter table app.users enable row level security;
 alter table app.sessions enable row level security;

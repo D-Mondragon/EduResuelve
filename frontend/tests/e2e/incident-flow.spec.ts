@@ -42,6 +42,12 @@ test.describe.serial('Flujo completo de una incidencia', () => {
     await expect(page).toHaveURL(/\/seguimiento\?accion=review$/)
     await page.getByRole('button', { name: 'Iniciar revisión' }).click()
     await expect(page.getByText('Ingresa una observación para el seguimiento.')).toBeVisible()
+    // Registro formal del incidente (D.S. 021-2026-MINEDU, 8.2): lo hace el personal al revisar el reporte
+    await expect(page.getByText('Confirma que la descripción es objetiva.')).toBeVisible()
+    await page.getByLabel('Régimen aplicable').selectOption('Disciplina')
+    await page.getByLabel('Hora del hecho').fill('10:30')
+    await page.getByLabel('Acciones inmediatas').fill('Se separó a los estudiantes y se avisó a sus familias.')
+    await page.getByLabel(/^Declaro que describí/).check()
     await page.getByLabel(/^Observación/).fill('Se conversó con los estudiantes.')
     await page.getByRole('button', { name: 'Iniciar revisión' }).click()
     await expect(page.getByText('La incidencia pasó a "En revisión".')).toBeVisible()

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { setupDb, USER_ID, validIncident, type TestDb } from './helpers'
+import { formalData, setupDb, USER_ID, validIncident, type TestDb } from './helpers'
 
 describe('Flujo de incidencias y reglas de negocio (RN-001 … RN-010)', () => {
   let t: TestDb
@@ -69,6 +69,7 @@ describe('Flujo de incidencias y reglas de negocio (RN-001 … RN-010)', () => {
   it('RN-004: asignar exige responsable activo con rol válido', async () => {
     const code = await createIncident()
     await t.rpc('transition_incident', { p_token: orientador, p_code: code, p_action: 'review', p_observation: 'ok' })
+    await t.rpc('register_formal', { p_token: orientador, p_code: code, p_data: formalData })
     const assign = (responsible: string | null) => t.rpc('transition_incident', {
       p_token: orientador, p_code: code, p_action: 'assign', p_observation: 'Asignación', p_responsible: responsible,
     })
@@ -172,6 +173,7 @@ describe('Flujo de incidencias y reglas de negocio (RN-001 … RN-010)', () => {
     expect(detail.followUps.at(-1)).toMatchObject({ kind: 'Edición', observation: 'Campos modificados: título.' })
 
     await t.rpc('transition_incident', { p_token: orientador, p_code: code, p_action: 'review', p_observation: 'ok' })
+    await t.rpc('register_formal', { p_token: orientador, p_code: code, p_data: formalData })
     await t.rpc('transition_incident', {
       p_token: orientador, p_code: code, p_action: 'assign', p_observation: 'ok', p_responsible: USER_ID.fabian,
     })
@@ -184,6 +186,7 @@ describe('Flujo de incidencias y reglas de negocio (RN-001 … RN-010)', () => {
   it('Notificaciones: asignar notifica al responsable y al autor; se marcan como leídas', async () => {
     const code = await createIncident()
     await t.rpc('transition_incident', { p_token: orientador, p_code: code, p_action: 'review', p_observation: 'ok' })
+    await t.rpc('register_formal', { p_token: orientador, p_code: code, p_data: formalData })
     await t.rpc('transition_incident', {
       p_token: orientador, p_code: code, p_action: 'assign', p_observation: 'ok', p_responsible: USER_ID.camila,
     })

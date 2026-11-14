@@ -1,6 +1,9 @@
 import { FilePlus2, Info, PencilLine, Save, ShieldAlert, X } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router'
+import { useAuth } from '../auth/authContext'
+import { FormalFields, ObjectiveGuide } from '../components/incident/FormalFields'
+import { emptyFormal, validateFormal, type FormalErrors } from '../lib/formal'
 import { useToast } from '../components/toast/toastContext'
 import { Button, ButtonLink } from '../components/ui/Button'
 import { Alert, Card, ErrorState, LoadingState, PageHeader } from '../components/ui/Feedback'
@@ -15,6 +18,7 @@ import {
   type IncidentDetail,
   type IncidentFormData,
 } from '../types/incident'
+import type { FormalFormData } from '../types/case'
 
 const empty: IncidentFormData = {
   title: '',
@@ -50,6 +54,13 @@ function IncidentFormPage() {
   const editing = Boolean(code)
   const navigate = useNavigate()
   const { notify } = useToast()
+  const { user } = useAuth()
+  // Cualquier usuario reporta; el personal puede hacer el registro formal en el mismo paso (8.2)
+  const staff = user?.role !== undefined && user.role !== 'Estudiante'
+  const offerFormal = staff && !editing
+  const [registerNow, setRegisterNow] = useState(true)
+  const [formal, setFormal] = useState<FormalFormData>(emptyFormal)
+  const [formalErrors, setFormalErrors] = useState<FormalErrors>({})
   const [values, setValues] = useState<IncidentFormData>(empty)
   const [initial, setInitial] = useState<IncidentFormData | null>(null)
   const [errors, setErrors] = useState<Errors>({})
@@ -85,11 +96,18 @@ function IncidentFormPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const nextErrors = validateIncidentForm(values)
+    const withFormal = offerFormal && registerNow
+    const nextFormalErrors = withFormal ? validateFormal(formal) : {}
     setErrors(nextErrors)
+    setFormalErrors(nextFormalErrors)
     setFormError('')
     if (Object.keys(nextErrors).length > 0) {
       const firstKey = Object.keys(nextErrors)[0]
       document.getElementById(`incident-${firstKey}`)?.focus()
+      return
+    }
+    if (Object.keys(nextFormalErrors).length > 0) {
+      document.getElementById(`formal-${Object.keys(nextFormalErrors)[0]}`)?.focus()
       return
     }
     setSaving(true)
@@ -99,7 +117,7 @@ function IncidentFormPage() {
         notify('Cambios guardados. La edición quedó registrada en el historial.')
         navigate(`/incidencias/${encodeURIComponent(code)}`)
       } else {
-        const result = await api.createIncident(values)
+        const result = await api.createIncident(withFormal ? { ...values, formal } : values)
         notify(`Incidencia ${result.code} registrada correctamente.`)
         navigate(`/incidencias/${encodeURIComponent(result.code)}`)
       }
@@ -135,7 +153,9 @@ function IncidentFormPage() {
         description={
           editing
             ? `Corrige la información de ${code}. Cada cambio queda registrado en el historial.`
-            : 'Completa los datos para iniciar la gestión y seguimiento.'
+            : staff
+              ? 'Completa los datos del hecho. Como personal de la institución, puedes hacer también el registro formal.'
+              : 'Cuéntanos qué pasó. El personal de la institución revisará tu reporte y hará el registro formal.'
         }
         icon={editing ? PencilLine : FilePlus2}
         title={editing ? 'Editar incidencia' : 'Registrar incidencia'}
@@ -167,7 +187,12 @@ function IncidentFormPage() {
               className="md:col-span-2"
               counter={[values.description.length, 2000]}
               error={errors.description}
-              hint="Explica qué pasó, cuándo y cómo se detectó. Evita juicios y datos sensibles."
+              hint={
+                <>
+                  Explica qué pasó, cuándo y cómo se detectó.
+                  <ObjectiveGuide />
+                </>
+              }
               id="incident-description"
               label="Descripción"
               required
@@ -236,6 +261,36 @@ function IncidentFormPage() {
                 value={values.involvedPeople}
               />
             </Field>
+
+            {offerFormal && (
+              <div className="space-y-5 rounded-lg border border-line p-4 md:col-span-2 sm:p-5">
+                <label className="flex items-start gap-3 text-sm font-medium text-ink" htmlFor="formal-now">
+                  <input
+                    checked={registerNow}
+                    className="mt-0.5 size-4 shrink-0 accent-emerald-700"
+                    id="formal-now"
+                    onChange={(e) => setRegisterNow(e.target.checked)}
+                    type="checkbox"
+                  />
+                  <span>
+                    Hacer ahora el registro formal
+                    <span className="block font-normal text-muted">
+                      Si presenciaste o conoces el hecho de primera mano. Si no, Orientación lo hará al revisarlo.
+                    </span>
+                  </span>
+                </label>
+                {registerNow && (
+                  <FormalFields
+                    errors={formalErrors}
+                    onChange={(next, key) => {
+                      setFormal(next)
+                      setFormalErrors((current) => ({ ...current, [key]: undefined }))
+                    }}
+                    values={formal}
+                  />
+                )}
+              </div>
+            )}
 
             {!editing && (
               <div className="flex gap-3 rounded-lg border border-line bg-surface-2 p-4 text-sm md:col-span-2">

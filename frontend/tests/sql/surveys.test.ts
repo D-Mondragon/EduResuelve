@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { setupDb, USER_ID, validIncident, type TestDb } from './helpers'
+import { formalData, setupDb, USER_ID, validIncident, type TestDb } from './helpers'
 
 const answer = { rating: 4, resolved: 'Sí', speedRating: 5, comment: 'Me atendieron con rapidez.' }
 
@@ -99,6 +99,7 @@ describe('Encuesta de satisfacción (RN-012)', () => {
     await t.rpc('transition_incident', { p_token: admin, p_code: 'ER-2026-0004', p_action: 'reopen', p_reason: 'Nuevo pedido' })
     let detail = await t.rpc('get_incident', { p_token: bruno, p_code: 'ER-2026-0004' })
     expect(detail.survey).toBeNull()
+    await t.rpc('register_formal', { p_token: admin, p_code: 'ER-2026-0004', p_data: formalData })
     await t.rpc('transition_incident', {
       p_token: admin, p_code: 'ER-2026-0004', p_action: 'assign', p_observation: 'x', p_responsible: USER_ID.fabian,
     })
@@ -118,6 +119,7 @@ describe('Encuesta de satisfacción (RN-012)', () => {
   it('CP-ENC-09: el aviso de cierre invita a evaluar la atención', async () => {
     const alicia = await t.login('alicia')
     const { code } = await t.rpc('create_incident', { p_token: alicia, p_data: validIncident })
+    await t.rpc('register_formal', { p_token: orientador, p_code: code, p_data: formalData })
     for (const [action, extra] of [
       ['review', {}], ['assign', { p_responsible: USER_ID.camila }],
     ] as const) {

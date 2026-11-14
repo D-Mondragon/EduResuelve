@@ -1,4 +1,5 @@
 import {
+  AlertTriangle,
   ArrowRight,
   CheckCircle2,
   FileBadge,
@@ -10,6 +11,7 @@ import {
   MessageSquarePlus,
   Paperclip,
   PencilLine,
+  Scale,
   Send,
   Sparkles,
   Workflow,
@@ -223,6 +225,11 @@ function IncidentDetailPage() {
             <ButtonLink icon={Workflow} to={`${base}/seguimiento`} variant="secondary">
               Seguimiento
             </ButtonLink>
+            {incident.case && (
+              <ButtonLink icon={Scale} to={`${base}/convivencia`} variant="secondary">
+                Convivencia
+              </ButtonLink>
+            )}
             {currentActa && (
               <ButtonLink icon={FileBadge} to={`${base}/acta/${encodeURIComponent(currentActa.number)}`} variant="secondary">
                 Acta
@@ -232,6 +239,28 @@ function IncidentDetailPage() {
         }
         incident={incident}
       />
+
+      {can(incident, 'acknowledge') && (
+        <section
+          aria-label="Comunicación a Dirección"
+          className="flex flex-col gap-4 rounded-xl border border-rose-200 bg-rose-50 p-5 sm:flex-row sm:items-center sm:justify-between dark:border-rose-400/30 dark:bg-rose-400/10"
+        >
+          <div className="flex items-start gap-3">
+            <AlertTriangle aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-rose-700 dark:text-rose-300" />
+            <div>
+              <p className="text-sm font-semibold text-rose-900 dark:text-rose-200">
+                Falta {incident.case?.severity?.toLowerCase()} comunicada a Dirección
+              </p>
+              <p className="mt-0.5 text-sm text-rose-800 dark:text-rose-300/90">
+                Revisa el caso y confirma que tomaste conocimiento. Las medidas por faltas graves las decide Dirección.
+              </p>
+            </div>
+          </div>
+          <ButtonLink className="shrink-0" icon={Scale} to={`${base}/convivencia`}>
+            Revisar caso
+          </ButtonLink>
+        </section>
+      )}
 
       {step ? (
         <section

@@ -1,10 +1,12 @@
 import {
   ArrowRight,
+  ClipboardCheck,
   FilePlus2,
   MessageSquare,
   Paperclip,
   PencilLine,
   RefreshCcw,
+  Scale,
   UserCheck,
   type LucideIcon,
 } from 'lucide-react'
@@ -21,6 +23,8 @@ const kindIcons: Record<FollowUpKind, LucideIcon> = {
   Edición: PencilLine,
   Observación: MessageSquare,
   Evidencia: Paperclip,
+  'Registro formal': ClipboardCheck,
+  Convivencia: Scale,
 }
 
 export function Timeline({ entries, newestFirst = false }: { entries: FollowUp[]; newestFirst?: boolean }) {

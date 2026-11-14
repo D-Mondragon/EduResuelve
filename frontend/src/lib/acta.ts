@@ -35,6 +35,8 @@ export function followUpEvent(entry: ActaContent['followUps'][number]): string {
   if (entry.kind === 'Evidencia') return 'Evidencia'
   if (entry.kind === 'Edición') return 'Edición de datos'
   if (entry.kind === 'Reasignación') return 'Reasignación'
+  if (entry.kind === 'Registro formal') return 'Registro formal'
+  if (entry.kind === 'Convivencia') return 'Convivencia'
   if (entry.previousStatus && entry.newStatus && entry.previousStatus !== entry.newStatus) {
     return `${entry.previousStatus} → ${entry.newStatus}`
   }
