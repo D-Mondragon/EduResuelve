@@ -434,7 +434,7 @@ export function MeetingDialog({ incident, onClose, onSaved, meeting }: DialogPro
       <Field
         counter={[values.agreements.length, 2000]}
         error={errors.agreements}
-        hint="Qué se hará, quién lo hará y cuándo se verificará."
+        hint="Un acuerdo por línea: qué se hará, quién lo hará y cuándo se verificará."
         id="meeting-agreements"
         label="Acuerdos y compromisos"
         required

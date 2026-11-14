@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ActaCase } from '../types/acta'
-import { actaFileName, familyCandidates, legalBasis, maskDni, nameInitials, needsDirectorSignature, showParticipant, visibleMeasures } from './caseDocs'
+import { actaFileName, splitAgreements, familyCandidates, legalBasis, maskDni, nameInitials, needsDirectorSignature, showParticipant, visibleMeasures } from './caseDocs'
 import { emptyFormal, validateFormal } from './formal'
-import { actaMilestones } from './acta'
-import type { ActaContent } from '../types/acta'
 
 const kase: ActaCase = {
   regime: 'Disciplina',
@@ -102,30 +100,14 @@ describe('Nombre del PDF del acta', () => {
   })
 })
 
-describe('Hitos de la atención en el acta', () => {
-  it('CP-UI-39: resume el historial en hitos ordenados, incluida la comunicación a Dirección', () => {
-    const user = { fullName: 'Estela Inventada', role: 'Orientador' as const }
-    const f = (kind: string, prev: string | null, next: string | null, at: string) =>
-      ({ kind, previousStatus: prev, newStatus: next, createdAt: at, user, observation: '', responsible: null }) as ActaContent['followUps'][number]
-    const content = {
-      followUps: [
-        f('Registro', null, 'Nuevo', '2026-11-01T10:00:00Z'),
-        f('Registro formal', 'Nuevo', 'Nuevo', '2026-11-01T11:00:00Z'),
-        f('Cambio de estado', 'Nuevo', 'En revisión', '2026-11-01T12:00:00Z'),
-        f('Convivencia', 'En revisión', 'En revisión', '2026-11-01T12:30:00Z'),
-        f('Registro formal', 'En revisión', 'En revisión', '2026-11-01T12:40:00Z'),
-        f('Observación', 'En revisión', 'En revisión', '2026-11-01T13:00:00Z'),
-        f('Asignación', 'En revisión', 'Asignado', '2026-11-01T14:00:00Z'),
-        f('Cambio de estado', 'Asignado', 'En atención', '2026-11-02T09:00:00Z'),
-        f('Cambio de estado', 'En atención', 'Resuelto', '2026-11-05T09:00:00Z'),
-        f('Cambio de estado', 'Resuelto', 'Cerrado', '2026-11-06T09:00:00Z'),
-      ],
-      case: { ...kase, directorNotifiedAt: '2026-11-01T12:20:00Z', directorLate: false, directorAckAt: '2026-11-01T15:00:00Z', directorAckBy: user },
-    } as unknown as ActaContent
-    expect(actaMilestones(content).map((m) => m.label)).toEqual([
-      'Reporte del hecho', 'Registro formal', 'Inicio de la revisión', 'Comunicación a Dirección', 'Asignación',
-      'Dirección tomó conocimiento', 'Inicio de la atención', 'Resolución', 'Validación y cierre',
+describe('Acuerdos y compromisos', () => {
+  it('CP-UI-39: se separan en una lista, uno por línea o numerados en el mismo párrafo', () => {
+    expect(splitAgreements('1) La familia acompañará. 2) El tutor informará cada viernes. 3) Nueva reunión si se repite.')).toEqual([
+      'La familia acompañará.', 'El tutor informará cada viernes.', 'Nueva reunión si se repite.',
     ])
-    expect(actaMilestones(content)[3].detail).toBe('Dentro del plazo de 24 horas')
+    expect(splitAgreements('Acompañamiento semanal\n- Taller de convivencia\n\n3. Informe en 15 días')).toEqual([
+      'Acompañamiento semanal', 'Taller de convivencia', 'Informe en 15 días',
+    ])
+    expect(splitAgreements('Un único acuerdo sin numerar.')).toEqual(['Un único acuerdo sin numerar.'])
   })
 })

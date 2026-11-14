@@ -23,8 +23,8 @@ test.describe('Acta de resolución (RN-011)', () => {
     await expect(acta).toContainText('Fabián Imaginario (Orientador)') // responsable
     await expect(acta).toContainText('Familia y estudiante') // involucrados
     await expect(acta).toContainText('Acciones realizadas')
-    await expect(acta).toContainText('Hitos de la atención')
-    await expect(acta).toContainText('Validación y cierre')
+    await expect(acta).not.toContainText('Hitos de la atención')
+    await expect(acta).toContainText('Anexo · Relación de evidencias')
     // El PDF se guarda con el número del acta, sin datos del caso
     await expect(page).toHaveTitle('ACT-2026-0004-02')
     await expect(acta).toContainText('Estela Inventada (Orientador)') // cerró

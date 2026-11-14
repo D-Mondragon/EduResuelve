@@ -29,7 +29,7 @@ import { Button } from '../components/ui/Button'
 import { Alert, Card, CardHeader, DetailItem, ErrorState, LoadingState } from '../components/ui/Feedback'
 import { Field, Input, Select } from '../components/ui/Field'
 import { useIncident } from '../hooks/useIncident'
-import { maskDni } from '../lib/caseDocs'
+import { maskDni, splitAgreements } from '../lib/caseDocs'
 import { api, ApiError } from '../lib/api'
 import { formatDate, formatDateTime } from '../lib/format'
 import { can } from '../lib/permissions'
@@ -491,7 +491,11 @@ function IncidentCasePage() {
                           {formatDate(m.meetingDate, 'long')} · <span className="font-medium text-muted">{m.signatureStatus}</span>
                         </p>
                         <p className="text-xs text-muted">Asistentes: {m.attendees}</p>
-                        <p className="whitespace-pre-line text-sm leading-6 text-ink-2">{m.agreements}</p>
+                        <ol className="list-decimal space-y-0.5 pl-5 text-sm leading-6 text-ink-2">
+                          {splitAgreements(m.agreements).map((item, i) => (
+                            <li key={i}>{item}</li>
+                          ))}
+                        </ol>
                         {m.notes && <p className="text-xs text-muted">{m.notes}</p>}
                       </div>
                       {manage && (

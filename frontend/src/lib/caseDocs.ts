@@ -113,3 +113,13 @@ export function actaFileName(number: string, copy: ActaCopy, familyName?: string
   }
   return number
 }
+
+/**
+ * Acuerdos y compromisos como lista: uno por línea o numerados en el mismo párrafo ("1) … 2) …").
+ * Quita la numeración escrita a mano (la lista la vuelve a numerar).
+ */
+export function splitAgreements(text: string): string[] {
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+  const parts = lines.length > 1 ? lines : text.split(/(?:^|\s)(?=\d{1,2}[).-]\s)/).map((l) => l.trim()).filter(Boolean)
+  return parts.map((part) => part.replace(/^(\d{1,2}[).-]|[-•*])\s+/, '').trim()).filter(Boolean)
+}

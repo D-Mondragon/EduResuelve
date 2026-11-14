@@ -8,7 +8,7 @@ import { Alert, ErrorState, LoadingState } from '../components/ui/Feedback'
 import { Field as FormField, Select } from '../components/ui/Field'
 import { useAsync } from '../hooks/useAsync'
 import { useQueryParams } from '../hooks/useQueryParams'
-import { actaMilestones, formatDuration, institutionName, personLabel, verifyUrl } from '../lib/acta'
+import { formatDuration, institutionName, personLabel, verifyUrl } from '../lib/acta'
 import {
   actaCopyLabels,
   actaFileName,
@@ -16,6 +16,7 @@ import {
   legalBasis,
   needsDirectorSignature,
   showParticipant,
+  splitAgreements,
   thirdPartyRecipients,
   visibleMeasures,
   type ActaCopy,
@@ -32,7 +33,7 @@ const QrCode = lazy(() => import('../components/QrCode').then((m) => ({ default:
 
 /* El acta se dibuja siempre como una hoja blanca (también en modo oscuro), igual que al imprimirla. */
 
-function Section({ number, title, children }: { number: number; title: string; children: ReactNode }) {
+function Section({ number, title, children }: { number: number | string; title: string; children: ReactNode }) {
   return (
     <section className="mt-7">
       <h2 className="flex break-after-avoid items-center gap-2 border-b-2 border-emerald-700 pb-1 text-[0.95rem] font-bold uppercase tracking-wide text-emerald-800">
@@ -98,7 +99,6 @@ function ActaDocument({
   const statements = people.filter((p) => p.role !== 'Testigo' && p.statement)
   const witnesses = people.filter((p) => p.role === 'Testigo')
   const signDirector = needsDirectorSignature(kase)
-  const milestones = actaMilestones(c)
   let n = 0
   const next = () => ++n
 
@@ -345,7 +345,18 @@ function ActaDocument({
                 <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
                   <Field label="Fecha">{formatDate(m.meetingDate, 'long')}</Field>
                   <Field label="Asistentes">{m.attendees}</Field>
-                  <Field label="Acuerdos y compromisos" wide>{m.agreements}</Field>
+                  <div className="min-w-0 sm:col-span-2">
+                    <dt className="text-[0.7rem] font-semibold uppercase tracking-wide text-slate-500">Acuerdos y compromisos</dt>
+                    <dd className="mt-1">
+                      <ol className="list-decimal gap-x-8 pl-5 text-sm leading-6 text-slate-900 sm:columns-2">
+                        {splitAgreements(m.agreements).map((item, i) => (
+                          <li className="mb-1 break-inside-avoid pl-1" key={i}>
+                            {item}
+                          </li>
+                        ))}
+                      </ol>
+                    </dd>
+                  </div>
                   {full && m.notes && <Field label="Notas" wide>{m.notes}</Field>}
                 </dl>
                 {m.signatureStatus === 'Se negó a firmar' && (
@@ -414,40 +425,48 @@ function ActaDocument({
         )}
       </Section>
 
-      <Section number={next()} title="Hitos de la atención">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[30rem] border-collapse">
-            <thead>
-              <tr>
-                <th className={tableHead} scope="col">Fecha y hora</th>
-                <th className={tableHead} scope="col">Hito</th>
-                <th className={tableHead} scope="col">Tiempo desde el reporte</th>
-                <th className={tableHead} scope="col">Realizado por</th>
-              </tr>
-            </thead>
-            <tbody>
-              {milestones.map((m, index) => (
-                <tr className="break-inside-avoid" key={`${m.at}-${index}`}>
-                  <td className={cn(tableCell, 'whitespace-nowrap')}>{formatDateTime(m.at)}</td>
-                  <td className={tableCell}>
-                    <span className="font-medium">{m.label}</span>
-                    {m.detail && <span className="block text-xs text-slate-500">{m.detail}</span>}
-                  </td>
-                  <td className={cn(tableCell, 'whitespace-nowrap')}>
-                    {index === 0 ? '—' : formatDuration((Date.parse(m.at) - Date.parse(milestones[0].at)) / 3_600_000)}
-                  </td>
-                  <td className={tableCell}>{m.by ? personLabel(m.by) : 'Sistema'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <p className="mt-2 text-xs text-slate-500">
-          El historial completo de la atención consta en el sistema EduResuelve como registro inmutable.
-        </p>
+      <Section number={next()} title="Validación y cierre">
+        {c.closure ? (
+          <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+            <Field label="Cerrada por">{personLabel(c.closure.closedBy)}</Field>
+            <Field label="Fecha de cierre">{formatDateTime(c.closure.closedAt)}</Field>
+            {full && <Field label="Observaciones de cierre" wide>{c.closure.observations || 'Sin observaciones.'}</Field>}
+          </dl>
+        ) : (
+          <p className="acta-prose text-sm text-slate-700">
+            Pendiente de validación por Orientación o Administración. Esta acta será reemplazada por el acta definitiva
+            al cerrarse la incidencia.
+          </p>
+        )}
+        <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-3 rounded-md bg-slate-50 p-3 sm:grid-cols-2">
+          <Field label="Tiempo hasta la resolución">{formatDuration(c.metrics.hoursToResolve)}</Field>
+          <Field label="Tiempo hasta el cierre">{c.closure ? formatDuration(c.metrics.hoursToClose) : 'En curso'}</Field>
+        </dl>
       </Section>
 
-      <Section number={next()} title="Evidencias">
+      {/* Firmas: según el caso (registro formal, Dirección en faltas graves o violencia, familia si hubo reunión) */}
+      <section aria-label="Firmas" className="mt-8 grid grid-cols-1 gap-x-6 gap-y-2 break-inside-avoid sm:grid-cols-3">
+        {kase?.formalRegisteredAt && kase.formalRegisteredBy?.fullName !== c.responsible?.fullName && (
+          <SignatureLine name={kase.formalRegisteredBy?.fullName} role="Personal que realizó el registro formal" />
+        )}
+        <SignatureLine
+          name={c.responsible?.fullName}
+          role={
+            kase?.formalRegisteredAt && kase.formalRegisteredBy?.fullName === c.responsible?.fullName
+              ? 'Registro formal y responsable de la atención'
+              : 'Responsable de la atención'
+          }
+        />
+        <SignatureLine name={c.closure?.closedBy?.fullName} role="Validó y cerró (Orientación / Administración)" />
+        {signDirector && <SignatureLine name={kase?.directorAckBy?.fullName} role="Dirección" />}
+        {kase && (kase.meetings.length > 0 || copy === 'familia') && (
+          <SignatureLine name={copy === 'familia' && familyStudent ? `Familia de ${familyStudent.name}` : undefined} role="Padre, madre o apoderado" />
+        )}
+        {!kase && <SignatureLine name={c.reporter?.fullName} role="Conformidad de quien registró (opcional)" />}
+      </section>
+
+      {/* Anexo: los archivos respaldan lo actuado; no forman parte del cuerpo firmado */}
+      <Section number="A" title="Anexo · Relación de evidencias">
         {c.evidences.length === 0 ? (
           <p className="text-sm text-slate-600">No se adjuntaron evidencias.</p>
         ) : (
@@ -489,46 +508,6 @@ function ActaDocument({
         )}
       </Section>
 
-      <Section number={next()} title="Validación y cierre">
-        {c.closure ? (
-          <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
-            <Field label="Cerrada por">{personLabel(c.closure.closedBy)}</Field>
-            <Field label="Fecha de cierre">{formatDateTime(c.closure.closedAt)}</Field>
-            {full && <Field label="Observaciones de cierre" wide>{c.closure.observations || 'Sin observaciones.'}</Field>}
-          </dl>
-        ) : (
-          <p className="acta-prose text-sm text-slate-700">
-            Pendiente de validación por Orientación o Administración. Esta acta será reemplazada por el acta definitiva
-            al cerrarse la incidencia.
-          </p>
-        )}
-        <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-3 rounded-md bg-slate-50 p-3 sm:grid-cols-2">
-          <Field label="Tiempo hasta la resolución">{formatDuration(c.metrics.hoursToResolve)}</Field>
-          <Field label="Tiempo hasta el cierre">{c.closure ? formatDuration(c.metrics.hoursToClose) : 'En curso'}</Field>
-        </dl>
-      </Section>
-
-      {/* Firmas: según el caso (registro formal, Dirección en faltas graves o violencia, familia si hubo reunión) */}
-      <section aria-label="Firmas" className="mt-8 grid grid-cols-1 gap-x-6 gap-y-2 break-inside-avoid sm:grid-cols-3">
-        {kase?.formalRegisteredAt && kase.formalRegisteredBy?.fullName !== c.responsible?.fullName && (
-          <SignatureLine name={kase.formalRegisteredBy?.fullName} role="Personal que realizó el registro formal" />
-        )}
-        <SignatureLine
-          name={c.responsible?.fullName}
-          role={
-            kase?.formalRegisteredAt && kase.formalRegisteredBy?.fullName === c.responsible?.fullName
-              ? 'Registro formal y responsable de la atención'
-              : 'Responsable de la atención'
-          }
-        />
-        <SignatureLine name={c.closure?.closedBy?.fullName} role="Validó y cerró (Orientación / Administración)" />
-        {signDirector && <SignatureLine name={kase?.directorAckBy?.fullName} role="Dirección" />}
-        {kase && (kase.meetings.length > 0 || copy === 'familia') && (
-          <SignatureLine name={copy === 'familia' && familyStudent ? `Familia de ${familyStudent.name}` : undefined} role="Padre, madre o apoderado" />
-        )}
-        {!kase && <SignatureLine name={c.reporter?.fullName} role="Conformidad de quien registró (opcional)" />}
-      </section>
-
       {/* Pie de verificación */}
       <footer className="mt-8 flex break-inside-avoid flex-col-reverse gap-3 rounded-md border border-slate-300 p-3 text-xs leading-5 text-slate-600 sm:flex-row sm:items-start print:flex-row print:items-start">
         <div className="min-w-0 flex-1">
@@ -554,6 +533,7 @@ function ActaDocument({
               Esta acta fue reemplazada el {formatDateTime(acta.replacedAt)}. {acta.replacedReason}
             </p>
           )}
+          <p className="mt-1">El historial completo de la atención consta en el sistema EduResuelve como registro inmutable.</p>
           {convivencia && (
             <p className="mt-1 font-medium text-slate-700">
               Este registro no exime de activar los protocolos de atención de la violencia escolar.
