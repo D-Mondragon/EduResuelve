@@ -23,6 +23,8 @@ import { Alert, EmptyState, ErrorState, LoadingState, PageHeader, StatCard } fro
 import { controlClass, Field, Input, Select } from '../components/ui/Field'
 import { Modal } from '../components/ui/Modal'
 import { useAsync } from '../hooks/useAsync'
+import { usePagination } from '../hooks/usePagination'
+import { Pagination } from '../components/ui/Pagination'
 import { api, ApiError } from '../lib/api'
 import { formatDate, formatDateTime, pluralize } from '../lib/format'
 import { cn } from '../lib/ui'
@@ -315,7 +317,7 @@ function ResetPasswordModal({ user, onClose, onSaved }: { user: ManagedUser; onC
 
 function UserActions({ user, isSelf, onAction }: { user: ManagedUser; isSelf: boolean; onAction: (dialog: Dialog) => void }) {
   return (
-    <div className="flex flex-wrap gap-1 lg:flex-nowrap">
+    <div className="flex flex-wrap gap-1 lg:min-w-[15rem]">
       <Button aria-label={`Editar a ${user.fullName}`} icon={PencilLine} onClick={() => onAction({ kind: 'form', user })} size="sm" variant="ghost">
         Editar
       </Button>
@@ -326,7 +328,7 @@ function UserActions({ user, isSelf, onAction }: { user: ManagedUser; isSelf: bo
         size="sm"
         variant="ghost"
       >
-        Clave
+        Restablecer clave
       </Button>
       {!isSelf && (
         <Button
@@ -363,6 +365,16 @@ function UsersPage() {
         (!status || user.status === status),
     )
   }, [users, search, role, status])
+  const pager = usePagination(filtered.length)
+  const pageUsers = filtered.slice(pager.info.start, pager.info.end)
+
+  /** Cambiar un filtro vuelve a la primera página. */
+  function filterWith<T>(setter: (value: T) => void) {
+    return (value: T) => {
+      setter(value)
+      pager.resetPage()
+    }
+  }
 
   const closeDialog = useCallback(() => setDialog(null), [])
   const refresh = useCallback(() => reload(true), [reload])
@@ -421,7 +433,7 @@ function UsersPage() {
                 <input
                   className={cn(controlClass, 'pl-9')}
                   id="user-search"
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => filterWith(setSearch)(e.target.value)}
                   placeholder="Nombre, correo o DNI…"
                   type="search"
                   value={search}
@@ -432,7 +444,7 @@ function UsersPage() {
               <label className="mb-1.5 block text-xs font-medium text-muted" htmlFor="user-role-filter">
                 Rol
               </label>
-              <select className={controlClass} id="user-role-filter" onChange={(e) => setRole(e.target.value as UserRole | '')} value={role}>
+              <select className={controlClass} id="user-role-filter" onChange={(e) => filterWith(setRole)(e.target.value as UserRole | '')} value={role}>
                 <option value="">Todos</option>
                 {userRoles.map((value) => (
                   <option key={value}>{value}</option>
@@ -446,7 +458,7 @@ function UsersPage() {
               <select
                 className={controlClass}
                 id="user-status-filter"
-                onChange={(e) => setStatus(e.target.value as 'Activo' | 'Inactivo' | '')}
+                onChange={(e) => filterWith(setStatus)(e.target.value as 'Activo' | 'Inactivo' | '')}
                 value={status}
               >
                 <option value="">Todos</option>
@@ -464,7 +476,7 @@ function UsersPage() {
             <EmptyState description="Prueba con otros filtros." icon={SearchX} title="No se encontraron usuarios" />
           ) : (
             <>
-              <div className="hidden overflow-hidden rounded-xl border border-line bg-surface shadow-sm lg:block">
+              <div className="hidden overflow-x-auto rounded-xl border border-line bg-surface shadow-sm lg:block">
                 <table className="w-full text-left text-sm">
                   <caption className="sr-only">Usuarios registrados</caption>
                   <thead className="bg-surface-2 text-xs font-semibold uppercase tracking-wide text-muted">
@@ -478,7 +490,7 @@ function UsersPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line">
-                    {filtered.map((user) => (
+                    {pageUsers.map((user) => (
                       <tr className="hover:bg-surface-2" key={user.id}>
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-3">
@@ -494,8 +506,8 @@ function UsersPage() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 py-3 font-mono text-ink-2">{user.dni}</td>
-                        <td className="px-4 py-3"><RoleBadge role={user.role} /></td>
+                        <td className="px-3 py-3 font-mono text-ink-2">{user.dni}</td>
+                        <td className="px-3 py-3"><RoleBadge role={user.role} /></td>
                         <td className="px-4 py-3">
                           <div className="flex flex-col items-start gap-1">
                             <UserStatusBadge status={user.status} />
@@ -506,10 +518,10 @@ function UsersPage() {
                             )}
                           </div>
                         </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-muted">
+                        <td className="min-w-24 px-3 py-3 text-muted">
                           {user.lastLoginAt ? formatDateTime(user.lastLoginAt) : 'Nunca'}
                         </td>
-                        <td className="px-4 py-2">
+                        <td className="px-2 py-2">
                           <UserActions isSelf={user.id === me.id} onAction={setDialog} user={user} />
                         </td>
                       </tr>
@@ -519,7 +531,7 @@ function UsersPage() {
               </div>
 
               <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:hidden">
-                {filtered.map((user) => (
+                {pageUsers.map((user) => (
                   <li className="rounded-xl border border-line bg-surface p-4 shadow-sm" key={user.id}>
                     <div className="flex items-start gap-3">
                       <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-2 text-sm font-bold text-ink-2">
@@ -553,6 +565,10 @@ function UsersPage() {
                   </li>
                 ))}
               </ul>
+
+              <div className="rounded-xl border border-line bg-surface shadow-sm">
+                <Pagination className="border-t-0" label="usuarios" {...pager} />
+              </div>
             </>
           )}
         </>

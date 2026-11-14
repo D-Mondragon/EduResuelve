@@ -1,8 +1,6 @@
 import {
   AlertTriangle,
   CalendarRange,
-  ChevronLeft,
-  ChevronRight,
   ClipboardList,
   Eye,
   FileChartColumn,
@@ -21,6 +19,7 @@ import { Link } from 'react-router'
 import { useQueryParams } from '../hooks/useQueryParams'
 import { useCurrentUser } from '../auth/authContext'
 import { Badge, PriorityBadge, StatusBadge } from '../components/ui/Badge'
+import { Pagination } from '../components/ui/Pagination'
 import { Button } from '../components/ui/Button'
 import { Card, CardHeader, EmptyState, ErrorState, LoadingState, PageHeader, StatCard } from '../components/ui/Feedback'
 import { controlClass } from '../components/ui/Field'
@@ -33,6 +32,7 @@ import { formatHours, formatPct } from '../lib/quality'
 import {
   DEFAULT_PAGE_SIZE,
   PAGE_SIZES,
+  pageRowClass,
   paginate,
   type PageInfo,
   byCategory,
@@ -147,58 +147,6 @@ function ActaLink({ row, returnTo }: { row: ReportRow; returnTo: string }) {
       <span className="print:hidden">{row.acta.kind === 'Definitiva' ? 'Definitiva' : 'Provisional'}</span>
       <span className="hidden font-mono text-xs print:inline">{row.acta.number}</span>
     </Link>
-  )
-}
-
-/** Fila fuera de la página actual: oculta en pantalla, pero se imprime (el PDF incluye todo). */
-const pageRowClass = (index: number, info: PageInfo) => (index < info.start || index >= info.end ? 'hidden print:table-row' : '')
-
-function Pager({
-  info,
-  size,
-  label,
-  onStep,
-  onSize,
-}: {
-  info: PageInfo
-  size: number
-  label: string
-  onStep: (delta: number, totalPages: number) => void
-  onSize: (size: number) => void
-}) {
-  if (info.total === 0) return null
-  return (
-    <nav
-      aria-label={`Paginación de ${label}`}
-      className="flex flex-col gap-3 border-t border-line px-5 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 print:hidden"
-    >
-      <p aria-live="polite" className="text-sm text-muted">
-        Mostrando <span className="font-medium text-ink">{info.start + 1}–{info.end}</span> de{' '}
-        <span className="font-medium text-ink">{info.total}</span>
-      </p>
-      <div className="flex flex-wrap items-center gap-2">
-        <label className="flex items-center gap-2 text-sm text-muted" htmlFor={`page-size-${label}`}>
-          Filas por página
-          <select className={cn(controlClass, 'w-auto py-1.5')} id={`page-size-${label}`} onChange={(e) => onSize(Number(e.target.value))} value={size}>
-            {PAGE_SIZES.map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </label>
-        <Button disabled={info.page <= 1} icon={ChevronLeft} onClick={() => onStep(-1, info.totalPages)} size="sm" variant="secondary">
-          Anterior
-        </Button>
-        <span className="min-w-24 text-center text-sm tabular-nums text-ink-2">
-          Página {info.page} de {info.totalPages}
-        </span>
-        <Button disabled={info.page >= info.totalPages} onClick={() => onStep(1, info.totalPages)} size="sm" variant="secondary">
-          Siguiente
-          <ChevronRight aria-hidden="true" className="size-4" />
-        </Button>
-      </div>
-    </nav>
   )
 }
 
@@ -777,7 +725,7 @@ function ReportsPage() {
                   ) : (
                     <>
                       <IncidentsView info={incidentPage} returnTo={returnTo} rows={visibleIncidents} />
-                      <Pager info={incidentPage} label="incidencias" {...pagerProps} />
+                      <Pagination info={incidentPage} label="incidencias" {...pagerProps} />
                     </>
                   ))}
                 {tab === 'mensual' && <MonthlyView rows={rows} />}
@@ -789,7 +737,7 @@ function ReportsPage() {
                   ) : (
                     <>
                       <PendingView info={pendingPage} list={pendingList} />
-                      <Pager info={pendingPage} label="pendientes" {...pagerProps} />
+                      <Pagination info={pendingPage} label="pendientes" {...pagerProps} />
                     </>
                   ))}
               </Card>

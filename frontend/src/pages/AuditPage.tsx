@@ -7,6 +7,9 @@ import { DetailItem, EmptyState, ErrorState, LoadingState, PageHeader, StatCard 
 import { controlClass } from '../components/ui/Field'
 import { Modal } from '../components/ui/Modal'
 import { useAsync } from '../hooks/useAsync'
+import { usePagination } from '../hooks/usePagination'
+import { Pagination } from '../components/ui/Pagination'
+import { pageRowClass } from '../lib/reports'
 import { api } from '../lib/api'
 import { toCsv } from '../lib/csv'
 import { saveBlob } from '../lib/files'
@@ -57,6 +60,15 @@ function AuditPage() {
       )
     })
   }, [logs, search, module, action, from, to])
+  const pager = usePagination(filtered.length)
+
+  /** Cambiar un filtro vuelve a la primera página. */
+  function filterWith<T>(setter: (value: T) => void) {
+    return (value: T) => {
+      setter(value)
+      pager.resetPage()
+    }
+  }
 
   const today = todayInLima()
   const todayCount = logs.filter((log) => limaDate(log.timestamp) === today).length
@@ -69,6 +81,7 @@ function AuditPage() {
     setAction('')
     setFrom('')
     setTo('')
+    pager.resetPage()
   }
 
   function exportCsv() {
@@ -152,7 +165,7 @@ function AuditPage() {
                 <input
                   className={cn(controlClass, 'pl-9')}
                   id="audit-search"
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => filterWith(setSearch)(e.target.value)}
                   placeholder="Usuario, DNI, registro…"
                   type="search"
                   value={search}
@@ -163,7 +176,7 @@ function AuditPage() {
               <label className="mb-1.5 block text-xs font-medium text-muted" htmlFor="audit-module">
                 Módulo
               </label>
-              <select className={controlClass} id="audit-module" onChange={(e) => setModule(e.target.value)} value={module}>
+              <select className={controlClass} id="audit-module" onChange={(e) => filterWith(setModule)(e.target.value)} value={module}>
                 <option value="">Todos</option>
                 {auditModules.map((value) => (
                   <option key={value}>{value}</option>
@@ -174,7 +187,7 @@ function AuditPage() {
               <label className="mb-1.5 block text-xs font-medium text-muted" htmlFor="audit-action">
                 Acción
               </label>
-              <select className={controlClass} id="audit-action" onChange={(e) => setAction(e.target.value)} value={action}>
+              <select className={controlClass} id="audit-action" onChange={(e) => filterWith(setAction)(e.target.value)} value={action}>
                 <option value="">Todas</option>
                 {actions.map((value) => (
                   <option key={value}>{value}</option>
@@ -185,13 +198,13 @@ function AuditPage() {
               <label className="mb-1.5 block text-xs font-medium text-muted" htmlFor="audit-from">
                 Desde
               </label>
-              <input className={controlClass} id="audit-from" max={to || undefined} onChange={(e) => setFrom(e.target.value)} type="date" value={from} />
+              <input className={controlClass} id="audit-from" max={to || undefined} onChange={(e) => filterWith(setFrom)(e.target.value)} type="date" value={from} />
             </div>
             <div>
               <label className="mb-1.5 block text-xs font-medium text-muted" htmlFor="audit-to">
                 Hasta
               </label>
-              <input className={controlClass} id="audit-to" min={from || undefined} onChange={(e) => setTo(e.target.value)} type="date" value={to} />
+              <input className={controlClass} id="audit-to" min={from || undefined} onChange={(e) => filterWith(setTo)(e.target.value)} type="date" value={to} />
             </div>
           </section>
 
@@ -225,8 +238,9 @@ function AuditPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line">
-                    {filtered.map((log) => (
-                      <tr className="hover:bg-surface-2 print:break-inside-avoid" key={log.id}>
+                    {/* Las filas fuera de la página actual se ocultan en pantalla, pero se imprimen todas */}
+                    {filtered.map((log, index) => (
+                      <tr className={cn('hover:bg-surface-2 print:break-inside-avoid', pageRowClass(index, pager.info))} key={log.id}>
                         <td className="whitespace-nowrap px-5 py-3 text-ink-2">{formatDateTime(log.timestamp)}</td>
                         <td className="px-4 py-3">
                           <p className="font-medium text-ink">{log.userName}</p>
@@ -248,7 +262,7 @@ function AuditPage() {
               </div>
 
               <ul className="space-y-3 lg:hidden print:hidden">
-                {filtered.map((log) => (
+                {filtered.slice(pager.info.start, pager.info.end).map((log) => (
                   <li key={log.id}>
                     <button
                       className="w-full rounded-xl border border-line bg-surface p-4 text-left shadow-sm hover:border-emerald-500/50"
@@ -268,6 +282,10 @@ function AuditPage() {
                   </li>
                 ))}
               </ul>
+
+              <div className="rounded-xl border border-line bg-surface shadow-sm print:hidden">
+                <Pagination className="border-t-0" label="eventos" {...pager} />
+              </div>
             </>
           )}
         </>
