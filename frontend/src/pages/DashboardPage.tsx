@@ -132,10 +132,41 @@ function PendingQueue({
 function ManagerDashboard({ incidents }: { incidents: IncidentSummary[] }) {
   const byStatus = (status: IncidentSummary['status']) => incidents.filter((i) => i.status === status)
   const pendingReassign = incidents.filter((i) => i.pendingReassignment)
+  // Faltas graves o muy graves sin constancia de que Dirección tomó conocimiento (D.S. 021-2026-MINEDU, 8.2)
+  const directorPending = incidents.filter((i) => i.directorPending)
   const active = incidents.filter((i) => !['Cerrado', 'Descartado'].includes(i.status))
 
   return (
     <>
+      {directorPending.length > 0 && (
+        <section
+          aria-label="Faltas graves pendientes de Dirección"
+          className="flex flex-col gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 sm:flex-row sm:items-start dark:border-rose-400/30 dark:bg-rose-400/10"
+        >
+          <AlertTriangle aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-rose-700 dark:text-rose-300" />
+          <div className="min-w-0 text-sm">
+            <p className="font-semibold text-rose-900 dark:text-rose-200">
+              {directorPending.length === 1
+                ? '1 falta grave pendiente de que Dirección tome conocimiento'
+                : `${directorPending.length} faltas graves pendientes de que Dirección tome conocimiento`}
+            </p>
+            <ul className="mt-1 space-y-0.5">
+              {directorPending.slice(0, 5).map((i) => (
+                <li key={i.code}>
+                  <Link
+                    className="font-medium text-rose-800 underline-offset-2 hover:underline dark:text-rose-300"
+                    to={`/incidencias/${encodeURIComponent(i.code)}/convivencia`}
+                  >
+                    {i.code}
+                  </Link>{' '}
+                  <span className="text-rose-800/90 dark:text-rose-300/90">· {i.title}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      )}
+
       <section aria-label="Pendientes de gestión">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">Requiere tu atención</h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">

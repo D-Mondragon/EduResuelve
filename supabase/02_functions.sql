@@ -1789,6 +1789,28 @@ begin
     select 9, 'Completitud', 'Sin personas involucradas registradas', 'info',
            (select count(*) from inc),
            array(select code from inc where trim(involved_people) = '' order by code)
+    -- Cumplimiento del D.S. 021-2026-MINEDU y de la R.M. 383-2025-MINEDU
+    union all
+    select 10, 'Cumplimiento normativo', 'Asignadas sin registro formal del incidente (8.2)', 'warning',
+           (select count(*) from inc where status in ('Asignado', 'En atención', 'Resuelto', 'Cerrado')),
+           array(select code from inc where status in ('Asignado', 'En atención', 'Resuelto', 'Cerrado')
+                 and formal_registered_at is null order by code)
+    union all
+    select 11, 'Cumplimiento normativo', 'Faltas graves no comunicadas a Dirección dentro de 24 h', 'warning',
+           (select count(*) from inc where severity in ('Grave', 'Muy grave')),
+           array(select code from inc where severity in ('Grave', 'Muy grave')
+                 and (director_notified_at is null or app.director_late(inc)) order by code)
+    union all
+    select 12, 'Cumplimiento normativo', 'Medidas decididas sin la versión previa del estudiante', 'error',
+           (select count(distinct incident_code) from app.case_measures),
+           array(select distinct m.incident_code from app.case_measures m
+                 join app.case_participants p on p.id = m.participant_id
+                 where p.statement_status = 'Pendiente' or p.statement_at > m.decided_at order by 1)
+    union all
+    select 13, 'Cumplimiento normativo', 'Casos de violencia sin código SíseVe', 'warning',
+           (select count(*) from inc where regime in ('Violencia', 'Disciplina y violencia') and status <> 'Descartado'),
+           array(select code from inc where regime in ('Violencia', 'Disciplina y violencia') and status <> 'Descartado'
+                 and siseve_code is null order by code)
   )
   select coalesce(jsonb_agg(jsonb_build_object(
            'dimension', dimension, 'check', name, 'severity', severity,
