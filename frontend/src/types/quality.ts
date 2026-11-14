@@ -47,7 +47,7 @@ export interface PriorityResolution {
 }
 
 export interface DataQualityCheck {
-  dimension: 'Integridad' | 'Consistencia' | 'Unicidad' | 'Actualización' | 'Completitud'
+  dimension: 'Integridad' | 'Consistencia' | 'Unicidad' | 'Actualización' | 'Completitud' | 'Cumplimiento normativo'
   check: string
   severity: 'error' | 'warning' | 'info'
   total: number

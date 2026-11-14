@@ -77,7 +77,36 @@ describe('Datos de demostración ampliados (04_demo_ampliado.sql)', () => {
     const closed = list.find((i: { status: string }) => i.status === 'Cerrado' && i.code > 'ER-2026-0006')
     const detail = await t.rpc('get_incident', { p_token: admin, p_code: closed.code })
     expect(detail.actas[0]).toMatchObject({ kind: 'Definitiva', status: 'Vigente' })
-    expect(detail.followUps.map((f: { newStatus: string }) => f.newStatus)).toEqual(
+    const states = detail.followUps.filter((f: { kind: string }) => ['Registro', 'Cambio de estado', 'Asignación'].includes(f.kind))
+    expect(states.map((f: { newStatus: string }) => f.newStatus)).toEqual(
       ['Nuevo', 'En revisión', 'Asignado', 'En atención', 'Resuelto', 'Cerrado'])
+  })
+
+  it('CP-DEMO-07: los casos de convivencia siguen el modelo del D.S. 021-2026-MINEDU', async () => {
+    const r = await one<Record<string, number>>(`select
+      (select count(*)::int from app.incidents where code >= 'ER-2026-0007' and category = 'Convivencia') convivencia,
+      (select count(*)::int from app.incidents where code >= 'ER-2026-0007' and status in ('Asignado','En atención','Resuelto','Cerrado')
+         and formal_registered_at is null) asignadas_sin_registro_formal,
+      (select count(*)::int from app.incidents where code >= 'ER-2026-0007' and formal_registered_at is null) pendientes_de_registro_formal,
+      (select count(*)::int from app.case_measures m join app.case_participants p on p.id = m.participant_id
+         where p.statement_status = 'Pendiente' or (p.statement_at is not null and p.statement_at > m.decided_at)) medidas_sin_version_previa,
+      (select count(*)::int from app.case_measures m join app.incidents i on i.code = m.incident_code join app.users u on u.id = m.decided_by
+         where i.severity in ('Grave','Muy grave') and u.role <> 'Administrador') medidas_graves_sin_direccion,
+      (select count(*)::int from app.incidents where severity in ('Grave','Muy grave') and director_notified_at is null) graves_sin_aviso,
+      (select count(*)::int from app.incidents where regime in ('Violencia','Disciplina y violencia') and status <> 'Descartado' and siseve_code is null) violencia_sin_siseve,
+      (select count(*)::int from app.incidents where severity in ('Grave','Muy grave') and director_ack_at is null and status not in ('Cerrado','Descartado')) direccion_pendiente,
+      (select count(*)::int from app.case_meetings where signature_status = 'Se negó a firmar') negativas_a_firmar,
+      (select count(*)::int from app.case_measures where is_separation) separaciones`)
+    expect(r).toEqual({
+      convivencia: 12, asignadas_sin_registro_formal: 0, pendientes_de_registro_formal: 2, medidas_sin_version_previa: 0,
+      medidas_graves_sin_direccion: 0, graves_sin_aviso: 0, violencia_sin_siseve: 0, direccion_pendiente: 1,
+      negativas_a_firmar: 1, separaciones: 1,
+    })
+    // El acta definitiva de un caso de convivencia guarda el caso; la versión del estudiante no
+    const closed = await one<{ number: string }>(`select a.number from app.actas a join app.incidents i on i.code = a.incident_code
+      where i.category = 'Convivencia' and a.kind = 'Definitiva' and a.status = 'Vigente' order by a.number limit 1`)
+    const acta = await t.rpc('get_acta', { p_token: admin, p_number: closed.number })
+    expect(acta.content.case.participants.length).toBeGreaterThan(0)
+    expect(acta.content.case.formalRegisteredBy).not.toBeNull()
   })
 })

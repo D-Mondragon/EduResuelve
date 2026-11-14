@@ -61,7 +61,11 @@ describe('Panel de calidad (tiempos de resolución, calidad de datos, satisfacci
       expect(c.affected, c.check).toBe(0)
     }
     expect(check(q, 'sin movimiento')).toMatchObject({ affected: 3, total: 3, okPct: 0 })
-    expect(q.dataQuality.score).toBe(87.5)
+    // Las incidencias iniciales son anteriores al D.S. 021-2026-MINEDU: no tienen registro formal
+    expect(check(q, 'sin registro formal')).toMatchObject({ dimension: 'Cumplimiento normativo' })
+    expect(check(q, 'sin registro formal').affected).toBeGreaterThan(0)
+    expect(check(q, 'sin la versión previa')).toMatchObject({ total: 0, affected: 0 })
+    expect(q.dataQuality.score).toBe(83.3)
   })
 
   it('CP-CAL-04: detecta datos incompletos e inconsistentes', async () => {
@@ -75,7 +79,7 @@ describe('Panel de calidad (tiempos de resolución, calidad de datos, satisfacci
     expect(check(q, 'posterior a la fecha de registro').codes).toEqual(['ER-2026-0900'])
     expect(check(q, 'sin responsable').codes).toEqual(['ER-2026-0901'])
     expect(check(q, 'Sin personas involucradas').codes).toEqual(['ER-2026-0900', 'ER-2026-0901'])
-    expect(q.dataQuality.score).toBeLessThan(87.5)
+    expect(q.dataQuality.score).toBeLessThan(83.3)
   })
 
   it('CP-CAL-05: detecta posibles duplicados (mismo título y categoría en 7 días)', async () => {
