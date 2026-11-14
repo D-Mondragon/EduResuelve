@@ -118,6 +118,7 @@ test.describe.serial('Convivencia escolar (D.S. 021-2026-MINEDU)', () => {
     await page.getByLabel('Versión del documento').selectOption('familia')
     await page.getByLabel('Familia del estudiante').selectOption({ label: 'Lucía Ejemplo Dos (estudiante afectado)' })
     await expect(acta).toContainText('Copia para la familia de Lucía Ejemplo Dos')
+    await expect(page).toHaveTitle(/^ACT-\d{4}-\d{4}-\d{2}-familia-LED$/)
     await expect(acta).toContainText('M. P. U.')
     await expect(acta).not.toContainText('Mateo Prueba Uno')
     await expect(acta).not.toContainText('Dice que lo empujaron primero.')
@@ -125,6 +126,9 @@ test.describe.serial('Convivencia escolar (D.S. 021-2026-MINEDU)', () => {
 
     await page.getByLabel('Versión del documento').selectOption('terceros')
     await expect(acta).toContainText('Copia para terceros')
+    await page.getByLabel('Dirigida a').selectOption('Fiscalía')
+    await expect(acta).toContainText('Copia para Fiscalía')
+    await expect(page).toHaveTitle(/^ACT-\d{4}-\d{4}-\d{2}-terceros-Fiscalia$/)
     await expect(acta).toContainText('71234567')
     await expect(acta).not.toContainText('Lucía Ejemplo Dos')
   })

@@ -1,5 +1,5 @@
 import { ArrowLeft, ExternalLink, FileDown, ShieldCheck } from 'lucide-react'
-import { lazy, Suspense, useCallback, type ReactNode } from 'react'
+import { lazy, Suspense, useCallback, useEffect, type ReactNode } from 'react'
 import { useParams } from 'react-router'
 import { useAuth } from '../auth/authContext'
 import { Logo } from '../components/Logo'
@@ -8,13 +8,15 @@ import { Alert, ErrorState, LoadingState } from '../components/ui/Feedback'
 import { Field as FormField, Select } from '../components/ui/Field'
 import { useAsync } from '../hooks/useAsync'
 import { useQueryParams } from '../hooks/useQueryParams'
-import { followUpEvent, formatDuration, institutionName, personLabel, verifyUrl } from '../lib/acta'
+import { actaMilestones, formatDuration, institutionName, personLabel, verifyUrl } from '../lib/acta'
 import {
   actaCopyLabels,
+  actaFileName,
   familyCandidates,
   legalBasis,
   needsDirectorSignature,
   showParticipant,
+  thirdPartyRecipients,
   visibleMeasures,
   type ActaCopy,
 } from '../lib/caseDocs'
@@ -71,11 +73,13 @@ function ActaDocument({
   viewer,
   copy,
   familyOf,
+  recipient,
 }: {
   acta: Acta
   viewer: string
   copy: ActaCopy
   familyOf: number | null
+  recipient: string | null
 }) {
   const c = acta.content
   const kase = c.case
@@ -94,6 +98,7 @@ function ActaDocument({
   const statements = people.filter((p) => p.role !== 'Testigo' && p.statement)
   const witnesses = people.filter((p) => p.role === 'Testigo')
   const signDirector = needsDirectorSignature(kase)
+  const milestones = actaMilestones(c)
   let n = 0
   const next = () => ++n
 
@@ -145,7 +150,9 @@ function ActaDocument({
         )}
         {acta.version === 'Completa' && copy !== 'completa' && (
           <span className="rounded-full border border-slate-400 px-2.5 py-1 font-semibold text-slate-700">
-            {copy === 'familia' ? `Copia para la familia${familyStudent ? ` de ${familyStudent.name}` : ''}` : 'Copia para terceros'}
+            {copy === 'familia'
+              ? `Copia para la familia${familyStudent ? ` de ${familyStudent.name}` : ''}`
+              : `Copia para ${recipient && recipient !== 'Otra' ? recipient : 'terceros'}`}
           </span>
         )}
         {kase && kase.regime !== 'Ninguno' && (
@@ -407,39 +414,37 @@ function ActaDocument({
         )}
       </Section>
 
-      <Section number={next()} title="Cronología de la atención">
+      <Section number={next()} title="Hitos de la atención">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[32rem] border-collapse">
+          <table className="w-full min-w-[30rem] border-collapse">
             <thead>
               <tr>
                 <th className={tableHead} scope="col">Fecha y hora</th>
-                <th className={tableHead} scope="col">Movimiento</th>
-                <th className={tableHead} scope="col">Detalle</th>
+                <th className={tableHead} scope="col">Hito</th>
+                <th className={tableHead} scope="col">Tiempo desde el reporte</th>
                 <th className={tableHead} scope="col">Realizado por</th>
               </tr>
             </thead>
             <tbody>
-              {c.followUps.map((entry, index) => (
-                <tr className="break-inside-avoid" key={`${entry.createdAt}-${index}`}>
-                  <td className={cn(tableCell, 'whitespace-nowrap')}>{formatDateTime(entry.createdAt)}</td>
-                  <td className={cn(tableCell, 'font-medium')}>{followUpEvent(entry)}</td>
+              {milestones.map((m, index) => (
+                <tr className="break-inside-avoid" key={`${m.at}-${index}`}>
+                  <td className={cn(tableCell, 'whitespace-nowrap')}>{formatDateTime(m.at)}</td>
                   <td className={tableCell}>
-                    {full ? (
-                      <>
-                        {entry.responsible && <span className="block">Responsable: {personLabel(entry.responsible)}</span>}
-                        {entry.reason && <span className="block">Motivo: {entry.reason}</span>}
-                        {entry.observation}
-                      </>
-                    ) : (
-                      <span className="text-slate-500">—</span>
-                    )}
+                    <span className="font-medium">{m.label}</span>
+                    {m.detail && <span className="block text-xs text-slate-500">{m.detail}</span>}
                   </td>
-                  <td className={tableCell}>{personLabel(entry.user)}</td>
+                  <td className={cn(tableCell, 'whitespace-nowrap')}>
+                    {index === 0 ? '—' : formatDuration((Date.parse(m.at) - Date.parse(milestones[0].at)) / 3_600_000)}
+                  </td>
+                  <td className={tableCell}>{m.by ? personLabel(m.by) : 'Sistema'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        <p className="mt-2 text-xs text-slate-500">
+          El historial completo de la atención consta en el sistema EduResuelve como registro inmutable.
+        </p>
       </Section>
 
       <Section number={next()} title="Evidencias">
@@ -583,6 +588,18 @@ function ActaDocument({
 
 const copies: ActaCopy[] = ['completa', 'familia', 'terceros']
 
+/** El navegador usa el título de la página como nombre del PDF: se cambia mientras el acta está abierta. */
+function DocumentTitle({ title }: { title: string }) {
+  useEffect(() => {
+    const previous = document.title
+    document.title = title
+    return () => {
+      document.title = previous
+    }
+  }, [title])
+  return null
+}
+
 function ActaPage() {
   const { code = '', number = '' } = useParams()
   const { user } = useAuth()
@@ -602,6 +619,12 @@ function ActaPage() {
   const requestedCopy = search.get('copia') as ActaCopy | null
   const copy: ActaCopy = canCopy && requestedCopy && copies.includes(requestedCopy) ? requestedCopy : 'completa'
   const requestedFamily = Number(search.get('estudiante'))
+  const recipient =
+    copy === 'terceros'
+      ? (thirdPartyRecipients as readonly string[]).includes(search.get('destino') ?? '')
+        ? search.get('destino')
+        : (acta.content.case?.referrals[0]?.entity ?? null)
+      : null
   const familyOf =
     copy === 'familia' ? (candidates.find((p) => p.id === requestedFamily) ?? candidates[0])?.id ?? null : null
 
@@ -644,6 +667,7 @@ function ActaPage() {
                     if (e.target.value === 'completa') next.delete('copia')
                     else next.set('copia', e.target.value)
                     if (e.target.value !== 'familia') next.delete('estudiante')
+                    if (e.target.value !== 'terceros') next.delete('destino')
                   })
                 }
                 value={copy}
@@ -666,6 +690,18 @@ function ActaPage() {
                 </Select>
               </FormField>
             )}
+            {copy === 'terceros' && (
+              <FormField className="sm:w-56" id="acta-recipient" label="Dirigida a">
+                <Select onChange={(e) => updateSearch((next) => next.set('destino', e.target.value))} value={recipient ?? ''}>
+                  <option value="">Sin especificar</option>
+                  {thirdPartyRecipients.map((entity) => (
+                    <option key={entity} value={entity}>
+                      {entity}
+                    </option>
+                  ))}
+                </Select>
+              </FormField>
+            )}
             {copy !== 'completa' && (
               <p className="text-xs leading-5 text-muted sm:flex-1">
                 La descripción se imprime tal como se registró: revisa que no mencione por su nombre a otros estudiantes.
@@ -679,7 +715,10 @@ function ActaPage() {
         </p>
       </div>
 
-      <ActaDocument acta={acta} copy={copy} familyOf={familyOf} viewer={user?.fullName ?? '—'} />
+      <DocumentTitle
+        title={actaFileName(acta.number, copy, candidates.find((p) => p.id === familyOf)?.fullName, recipient)}
+      />
+      <ActaDocument acta={acta} copy={copy} familyOf={familyOf} recipient={recipient} viewer={user?.fullName ?? '—'} />
     </div>
   )
 }

@@ -42,3 +42,60 @@ export function followUpEvent(entry: ActaContent['followUps'][number]): string {
   }
   return entry.kind
 }
+
+export interface ActaMilestone {
+  at: string
+  label: string
+  by: ActaPerson | null
+  detail?: string
+}
+
+/**
+ * Hitos de la atención para el acta: solo los cambios de etapa y los plazos que se controlan
+ * (registro, registro formal, revisión, asignación, atención, comunicación a Dirección,
+ * resolución y cierre). El historial completo queda en el sistema (RN-003).
+ */
+export function actaMilestones(content: ActaContent): ActaMilestone[] {
+  const out: ActaMilestone[] = []
+  let formalSeen = false
+  for (const f of content.followUps) {
+    if (f.kind === 'Registro') {
+      out.push({ at: f.createdAt, label: 'Reporte del hecho', by: f.user })
+    } else if (f.kind === 'Registro formal') {
+      if (!formalSeen) out.push({ at: f.createdAt, label: 'Registro formal', by: f.user })
+      formalSeen = true
+    } else if (f.kind === 'Asignación' || f.kind === 'Reasignación') {
+      out.push({
+        at: f.createdAt,
+        label: f.kind === 'Asignación' ? 'Asignación' : 'Reasignación',
+        by: f.user,
+        detail: f.responsible ? `Responsable: ${personLabel(f.responsible)}` : undefined,
+      })
+    } else if (f.kind === 'Cambio de estado' && f.previousStatus !== f.newStatus) {
+      const label =
+        f.newStatus === 'En revisión'
+          ? f.previousStatus === 'Cerrado' ? 'Reapertura' : 'Inicio de la revisión'
+          : f.newStatus === 'En atención'
+            ? 'Inicio de la atención'
+            : f.newStatus === 'Resuelto'
+              ? 'Resolución'
+              : f.newStatus === 'Cerrado'
+                ? 'Validación y cierre'
+                : f.newStatus === 'Descartado'
+                  ? 'Descarte'
+                  : `${f.previousStatus ?? ''} → ${f.newStatus ?? ''}`
+      out.push({ at: f.createdAt, label, by: f.user })
+    }
+  }
+  const c = content.case
+  if (c?.directorNotifiedAt) {
+    out.push({
+      at: c.directorNotifiedAt,
+      label: 'Comunicación a Dirección',
+      by: null,
+      detail: c.directorLate ? 'Fuera del plazo de 24 horas' : 'Dentro del plazo de 24 horas',
+    })
+  }
+  if (c?.directorAckAt) out.push({ at: c.directorAckAt, label: 'Dirección tomó conocimiento', by: c.directorAckBy })
+  return out.sort((a, b) => a.at.localeCompare(b.at))
+}
