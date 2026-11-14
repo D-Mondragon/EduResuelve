@@ -185,6 +185,16 @@ begin
   if app.survey_state(u, i) = 'Pendiente' then
     v := v || 'survey'::text;
   end if;
+  -- Registro formal y convivencia (D.S. 021-2026-MINEDU): solo personal, con la incidencia abierta
+  if app.can_manage_case(u, i) then
+    v := v || 'formal'::text;
+    if i.formal_registered_at is not null then
+      v := v || 'case'::text;
+    end if;
+  end if;
+  if v_admin and app.director_pending(i) then
+    v := v || 'acknowledge'::text;
+  end if;
   return v;
 end;
 $$;
@@ -397,6 +407,7 @@ declare
 begin
   return coalesce((
     select jsonb_agg(app.incident_summary_json(i) || jsonb_build_object('allowedActions', app.allowed_actions(v_user, i))
+                     || case when app.is_staff(v_user) then app.case_flags_json(i) else '{}'::jsonb end
                      order by i.updated_at desc)
     from app.incidents i
     where app.can_view(v_user, i)
@@ -462,7 +473,8 @@ begin
       select jsonb_agg(app.acta_meta_json(a) order by a.seq desc)
       from app.actas a where a.incident_code = v_inc.code
     ), '[]'::jsonb),
-    'survey', app.survey_json(v_user, v_inc)
+    'survey', app.survey_json(v_user, v_inc),
+    'case', case when app.is_staff(v_user) then app.case_json(v_user, v_inc) else null end
   );
 end;
 $$;
@@ -539,6 +551,9 @@ begin
   perform app.add_follow_up(v_code, 'Registro', null, 'Nuevo', 'Incidencia registrada.', null, null, v_user.id);
   perform app.log(v_user, 'Registro de incidencia', 'Incidencias', v_code,
                   format('Registró la incidencia "%s".', app.text_field(p_data, 'title')));
+  if jsonb_typeof(p_data -> 'formal') = 'object' then
+    perform app.apply_formal(v_user, (select i from app.incidents i where i.code = v_code), p_data -> 'formal');
+  end if;
   perform app.notify_managers(v_code, 'Nueva incidencia registrada',
                               format('%s: %s', v_code, app.text_field(p_data, 'title')), v_user.id);
   return jsonb_build_object('code', v_code);
@@ -625,6 +640,10 @@ begin
   end if;
   if p_action in ('review', 'assign', 'start') and v_obs = '' then
     perform app.fail('Ingresa una observación para el seguimiento.');
+  end if;
+
+  if p_action = 'assign' and v_inc.formal_registered_at is null then
+    perform app.fail('Antes de asignar, completa el registro formal del incidente (D.S. 021-2026-MINEDU, 8.2).');
   end if;
 
   if p_action = 'assign' then
@@ -1316,6 +1335,7 @@ begin
     'closure', case when v_clo.id is null then null else jsonb_build_object(
       'observations', v_clo.observations, 'closedBy', app.person_json(v_clo.closed_by),
       'closedAt', v_clo.closed_at) end,
+    'case', app.acta_case_json(i),
     'metrics', jsonb_build_object(
       'hoursToResolve', case when v_res.id is null then null
         else round(extract(epoch from (v_res.registered_at - i.registered_at)) / 3600.0, 1) end,
@@ -1383,7 +1403,7 @@ $$;
 -- Versión resumida para el Estudiante: sin observaciones internas ni nombres de terceros
 create or replace function app.acta_summary_content(c jsonb) returns jsonb
 language sql immutable set search_path = app, extensions, pg_temp as $$
-  select c
+  select (c - 'case')
     || jsonb_build_object('incident', (c -> 'incident') - 'involvedPeople' - 'observations')
     || jsonb_build_object('followUps', coalesce((
          select jsonb_agg(jsonb_build_object(
@@ -1919,6 +1939,622 @@ end;
 $$;
 
 -- =====================================================================
+-- Registro formal y convivencia escolar
+-- D.S. 021-2026-MINEDU (anexo 8.2, 9.1 y IX), R.M. 383-2025-MINEDU y Ley 29719.
+--   · Cualquier usuario puede REPORTAR un hecho.
+--   · El REGISTRO FORMAL lo hace el personal (Docente, Orientador o Administrador).
+--   · Administrador = Dirección: recibe las faltas graves y decide sus medidas.
+-- =====================================================================
+
+create or replace function app.is_staff(u app.users) returns boolean
+language sql immutable set search_path = app, extensions, pg_temp as $$
+  select u.role in ('Docente', 'Orientador', 'Administrador');
+$$;
+
+-- Personal que puede documentar el caso: lo ve, y la incidencia sigue abierta
+create or replace function app.can_manage_case(u app.users, i app.incidents) returns boolean
+language sql immutable set search_path = app, extensions, pg_temp as $$
+  select app.is_staff(u) and app.can_view(u, i) and i.status not in ('Cerrado', 'Descartado');
+$$;
+
+create or replace function app.has_discipline(i app.incidents) returns boolean
+language sql immutable set search_path = app, extensions, pg_temp as $$
+  select i.regime in ('Disciplina', 'Disciplina y violencia');
+$$;
+
+create or replace function app.has_violence(i app.incidents) returns boolean
+language sql immutable set search_path = app, extensions, pg_temp as $$
+  select i.regime in ('Violencia', 'Disciplina y violencia');
+$$;
+
+-- Falta grave o muy grave sin constancia de que Dirección tomó conocimiento
+create or replace function app.director_pending(i app.incidents) returns boolean
+language sql immutable set search_path = app, extensions, pg_temp as $$
+  select coalesce(i.severity in ('Grave', 'Muy grave'), false) and i.director_ack_at is null
+         and i.status not in ('Cerrado', 'Descartado');
+$$;
+
+-- Comunicación a Dirección fuera de las 24 h desde que la institución conoció el hecho (8.2)
+create or replace function app.director_late(i app.incidents) returns boolean
+language sql immutable set search_path = app, extensions, pg_temp as $$
+  select case when i.director_notified_at is null then null
+              else i.director_notified_at > i.registered_at + interval '24 hours' end;
+$$;
+
+-- Indicadores del caso para listados (solo personal)
+create or replace function app.case_flags_json(i app.incidents) returns jsonb
+language sql immutable set search_path = app, extensions, pg_temp as $$
+  select jsonb_build_object(
+    'regime', i.regime,
+    'severity', i.severity,
+    'formalRegistered', i.formal_registered_at is not null,
+    'directorPending', app.director_pending(i));
+$$;
+
+create or replace function app.parse_time(p_value text) returns time
+language plpgsql immutable set search_path = app, extensions, pg_temp as $$
+begin
+  if p_value is null or p_value !~ '^([01][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$' then
+    return null;
+  end if;
+  return p_value::time;
+end;
+$$;
+
+create or replace function app.parse_date(p_value text) returns date
+language plpgsql immutable set search_path = app, extensions, pg_temp as $$
+begin
+  return p_value::date;
+exception when others then
+  return null;
+end;
+$$;
+
+-- Aplica los datos del registro formal (8.2). La primera vez fija quién y cuándo lo hizo.
+create or replace function app.apply_formal(u app.users, i app.incidents, p_data jsonb) returns void
+language plpgsql set search_path = app, extensions, pg_temp as $$
+declare
+  v_regime text := app.text_field(p_data, 'regime');
+  v_time time := app.parse_time(app.text_field(p_data, 'incidentTime'));
+  v_actions text := app.text_field(p_data, 'immediateActions');
+  v_first boolean := i.formal_registered_at is null;
+begin
+  if not app.is_staff(u) then
+    perform app.forbidden('El registro formal lo realiza el personal de la institución (D.S. 021-2026-MINEDU, 8.2).');
+  end if;
+  if v_regime not in ('Ninguno', 'Disciplina', 'Violencia', 'Disciplina y violencia') then
+    perform app.fail('Selecciona el régimen aplicable.');
+  end if;
+  if v_time is null then
+    perform app.fail('Indica la hora del hecho (HH:MM).');
+  end if;
+  if i.incident_date = (now() at time zone 'America/Lima')::date
+     and v_time > (now() at time zone 'America/Lima')::time then
+    perform app.fail('La hora del hecho no puede ser futura.');
+  end if;
+  if v_actions = '' then
+    perform app.fail('Describe las acciones inmediatas adoptadas (o indica que no fueron necesarias).');
+  end if;
+  if length(v_actions) > 1000 then
+    perform app.fail('Las acciones inmediatas admiten como máximo 1000 caracteres.');
+  end if;
+  if coalesce((p_data ->> 'objective')::boolean, false) is not true then
+    perform app.fail('Confirma que la descripción es objetiva: sin calificativos, diagnósticos ni conclusiones sobre responsabilidad.');
+  end if;
+
+  update app.incidents set
+    regime = v_regime,
+    incident_time = v_time,
+    immediate_actions = v_actions,
+    formal_registered_by = coalesce(formal_registered_by, u.id),
+    formal_registered_at = coalesce(formal_registered_at, now()),
+    updated_at = now()
+  where code = i.code;
+
+  perform app.add_follow_up(i.code, 'Registro formal', i.status, i.status,
+    case when v_first then 'Registro formal del incidente. Régimen: ' || v_regime || '.'
+         else 'Actualizó el registro formal. Régimen: ' || v_regime || '.' end,
+    null, null, u.id);
+  perform app.log(u, case when v_first then 'Registro formal' else 'Edición de registro formal' end,
+    'Convivencia', i.code, 'Régimen: ' || v_regime || '.');
+end;
+$$;
+
+-- Notifica a Dirección (Administradores activos) una falta grave o muy grave
+create or replace function app.notify_director(i app.incidents, p_severity text, p_actor uuid) returns void
+language plpgsql set search_path = app, extensions, pg_temp as $$
+declare
+  r record;
+begin
+  for r in select id from app.users where role = 'Administrador' and status = 'Activo' and id <> p_actor loop
+    perform app.notify(r.id, i.code, format('Falta %s: comunicación a Dirección', lower(p_severity)),
+                       format('%s: %s. Confirma que tomaste conocimiento.', i.code, i.title), p_actor);
+  end loop;
+end;
+$$;
+
+-- Datos del caso que no son el registro formal: estudiantes, medidas, reuniones y derivaciones
+create or replace function app.case_json(u app.users, i app.incidents) returns jsonb
+language sql stable set search_path = app, extensions, pg_temp as $$
+  select jsonb_build_object(
+    'regime', i.regime,
+    'incidentTime', to_char(i.incident_time, 'HH24:MI'),
+    'immediateActions', i.immediate_actions,
+    'formalRegisteredBy', app.user_ref(i.formal_registered_by),
+    'formalRegisteredAt', i.formal_registered_at,
+    'severity', i.severity,
+    'directorNotifiedAt', i.director_notified_at,
+    'directorLate', app.director_late(i),
+    'directorAckBy', app.user_ref(i.director_ack_by),
+    'directorAckAt', i.director_ack_at,
+    'violenceType', i.violence_type,
+    'violenceModality', i.violence_modality,
+    'siseveCode', i.siseve_code,
+    'bookFolio', i.book_folio,
+    'canManage', app.can_manage_case(u, i),
+    'canDecideSevere', u.role = 'Administrador',
+    'participants', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'id', p.id, 'role', p.role, 'fullName', p.full_name, 'dni', p.dni, 'gradeSection', p.grade_section,
+        'statement', p.statement, 'statementStatus', p.statement_status, 'statementBy', p.statement_by,
+        'statementAt', p.statement_at, 'createdAt', p.created_at) order by p.id)
+      from app.case_participants p where p.incident_code = i.code), '[]'::jsonb),
+    'measures', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'id', m.id, 'participantId', m.participant_id, 'participantName', p.full_name,
+        'kind', m.kind, 'description', m.description, 'isSeparation', m.is_separation,
+        'decidedBy', app.user_ref(m.decided_by), 'decidedAt', m.decided_at) order by m.id)
+      from app.case_measures m join app.case_participants p on p.id = m.participant_id
+      where m.incident_code = i.code), '[]'::jsonb),
+    'meetings', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'id', m.id, 'meetingDate', m.meeting_date, 'attendees', m.attendees, 'agreements', m.agreements,
+        'signatureStatus', m.signature_status, 'notes', m.notes,
+        'createdBy', app.user_ref(m.created_by), 'createdAt', m.created_at) order by m.meeting_date, m.id)
+      from app.case_meetings m where m.incident_code = i.code), '[]'::jsonb),
+    'referrals', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'id', r.id, 'entity', r.entity, 'officeNumber', r.office_number, 'referralDate', r.referral_date,
+        'notes', r.notes, 'createdBy', app.user_ref(r.created_by), 'createdAt', r.created_at)
+        order by r.referral_date, r.id)
+      from app.case_referrals r where r.incident_code = i.code), '[]'::jsonb)
+  );
+$$;
+
+-- Registro formal y caso de convivencia tal como quedan en el acta (copia fija)
+create or replace function app.acta_case_json(i app.incidents) returns jsonb
+language sql stable set search_path = app, extensions, pg_temp as $$
+  select jsonb_build_object(
+    'regime', i.regime,
+    'incidentTime', to_char(i.incident_time, 'HH24:MI'),
+    'immediateActions', i.immediate_actions,
+    'formalRegisteredBy', app.person_json(i.formal_registered_by),
+    'formalRegisteredAt', i.formal_registered_at,
+    'severity', i.severity,
+    'directorNotifiedAt', i.director_notified_at,
+    'directorLate', app.director_late(i),
+    'directorAckBy', app.person_json(i.director_ack_by),
+    'directorAckAt', i.director_ack_at,
+    'violenceType', i.violence_type,
+    'violenceModality', i.violence_modality,
+    'siseveCode', i.siseve_code,
+    'bookFolio', i.book_folio,
+    'participants', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'id', p.id, 'role', p.role, 'fullName', p.full_name, 'dni', p.dni, 'gradeSection', p.grade_section,
+        'statement', p.statement, 'statementStatus', p.statement_status, 'statementBy', p.statement_by,
+        'statementAt', p.statement_at) order by p.id)
+      from app.case_participants p where p.incident_code = i.code), '[]'::jsonb),
+    'measures', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'participantId', m.participant_id, 'kind', m.kind, 'description', m.description,
+        'isSeparation', m.is_separation, 'decidedBy', app.person_json(m.decided_by), 'decidedAt', m.decided_at)
+        order by m.id)
+      from app.case_measures m where m.incident_code = i.code), '[]'::jsonb),
+    'meetings', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'meetingDate', m.meeting_date, 'attendees', m.attendees, 'agreements', m.agreements,
+        'signatureStatus', m.signature_status, 'notes', m.notes) order by m.meeting_date, m.id)
+      from app.case_meetings m where m.incident_code = i.code), '[]'::jsonb),
+    'referrals', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'entity', r.entity, 'officeNumber', r.office_number, 'referralDate', r.referral_date, 'notes', r.notes)
+        order by r.referral_date, r.id)
+      from app.case_referrals r where r.incident_code = i.code), '[]'::jsonb)
+  );
+$$;
+
+-- RPC: registro formal del incidente (8.2)
+create or replace function public.register_formal(p_token text, p_code text, p_data jsonb) returns jsonb
+language plpgsql security definer set search_path = app, extensions, pg_temp as $$
+declare
+  v_user app.users := app.session_user(p_token);
+  v_inc app.incidents := app.get_incident_for(v_user, p_code);
+begin
+  perform app.require_action(v_user, v_inc, 'formal',
+    'El registro formal lo realiza el personal de la institución, mientras la incidencia esté abierta.');
+  perform app.apply_formal(v_user, v_inc, coalesce(p_data, '{}'::jsonb));
+  return jsonb_build_object('code', v_inc.code);
+end;
+$$;
+
+-- RPC: calificación de la falta y datos del protocolo de violencia
+create or replace function public.update_case(p_token text, p_code text, p_data jsonb) returns jsonb
+language plpgsql security definer set search_path = app, extensions, pg_temp as $$
+declare
+  v_user app.users := app.session_user(p_token);
+  v_inc app.incidents := app.get_incident_for(v_user, p_code);
+  v_data jsonb := coalesce(p_data, '{}'::jsonb);
+  v_severity text;
+  v_changes text[] := '{}';
+  v_value text;
+begin
+  perform app.require_action(v_user, v_inc, 'case',
+    'Solo el personal que atiende el caso puede documentarlo, mientras la incidencia esté abierta.');
+  if v_inc.formal_registered_at is null then
+    perform app.fail('Primero completa el registro formal del incidente.');
+  end if;
+
+  if v_data ? 'severity' then
+    v_severity := nullif(app.text_field(v_data, 'severity'), '');
+    if not app.has_discipline(v_inc) then
+      perform app.fail('La calificación de la falta solo corresponde al régimen disciplinario.');
+    end if;
+    if v_severity is null or v_severity not in ('Leve', 'Grave', 'Muy grave') then
+      perform app.fail('Selecciona la gravedad de la falta: Leve, Grave o Muy grave.');
+    end if;
+    if v_inc.severity in ('Grave', 'Muy grave') and v_severity = 'Leve'
+       and exists (select 1 from app.case_measures where incident_code = v_inc.code) and v_user.role <> 'Administrador' then
+      perform app.forbidden('Solo Dirección puede recalificar como leve una falta grave con medidas registradas.');
+    end if;
+    if v_severity is distinct from v_inc.severity then
+      update app.incidents set severity = v_severity,
+        director_notified_at = case when v_severity in ('Grave', 'Muy grave') then coalesce(director_notified_at, now())
+                                    else director_notified_at end
+      where code = v_inc.code;
+      v_changes := v_changes || ('gravedad: ' || v_severity);
+      if v_severity in ('Grave', 'Muy grave') and v_inc.director_notified_at is null then
+        perform app.notify_director(v_inc, v_severity, v_user.id);
+        if v_user.role = 'Administrador' then
+          update app.incidents set director_ack_by = v_user.id, director_ack_at = now() where code = v_inc.code;
+        end if;
+      end if;
+    end if;
+  end if;
+
+  if v_data ?| array['violenceType', 'violenceModality', 'siseveCode', 'bookFolio'] and not app.has_violence(v_inc) then
+    perform app.fail('Los datos del protocolo solo corresponden a casos de violencia escolar.');
+  end if;
+  if v_data ? 'violenceType' then
+    v_value := nullif(app.text_field(v_data, 'violenceType'), '');
+    if v_value is not null and v_value not in ('Física', 'Psicológica', 'Sexual') then
+      perform app.fail('Selecciona un tipo de violencia válido.');
+    end if;
+    if v_value is distinct from v_inc.violence_type then
+      update app.incidents set violence_type = v_value where code = v_inc.code;
+      v_changes := v_changes || ('tipo de violencia: ' || coalesce(v_value, 'sin dato'));
+    end if;
+  end if;
+  if v_data ? 'violenceModality' then
+    v_value := nullif(app.text_field(v_data, 'violenceModality'), '');
+    if v_value is not null and v_value not in ('Entre estudiantes', 'Del personal de la IE hacia estudiantes') then
+      perform app.fail('Selecciona una modalidad válida.');
+    end if;
+    if v_value is distinct from v_inc.violence_modality then
+      update app.incidents set violence_modality = v_value where code = v_inc.code;
+      v_changes := v_changes || ('modalidad: ' || coalesce(v_value, 'sin dato'));
+    end if;
+  end if;
+  if v_data ? 'siseveCode' then
+    v_value := nullif(app.text_field(v_data, 'siseveCode'), '');
+    if length(v_value) > 40 then
+      perform app.fail('El código SíseVe admite como máximo 40 caracteres.');
+    end if;
+    if v_value is distinct from v_inc.siseve_code then
+      update app.incidents set siseve_code = v_value where code = v_inc.code;
+      v_changes := v_changes || ('código SíseVe: ' || coalesce(v_value, 'sin dato'));
+    end if;
+  end if;
+  if v_data ? 'bookFolio' then
+    v_value := nullif(app.text_field(v_data, 'bookFolio'), '');
+    if length(v_value) > 40 then
+      perform app.fail('El folio admite como máximo 40 caracteres.');
+    end if;
+    if v_value is distinct from v_inc.book_folio then
+      update app.incidents set book_folio = v_value where code = v_inc.code;
+      v_changes := v_changes || ('folio del Libro de Registro: ' || coalesce(v_value, 'sin dato'));
+    end if;
+  end if;
+
+  if cardinality(v_changes) = 0 then
+    perform app.fail('No hay cambios para guardar.');
+  end if;
+  update app.incidents set updated_at = now() where code = v_inc.code;
+  perform app.add_follow_up(v_inc.code, 'Convivencia', v_inc.status, v_inc.status,
+    'Actualizó ' || array_to_string(v_changes, '; ') || '.', null, null, v_user.id);
+  perform app.log(v_user, 'Datos del caso', 'Convivencia', v_inc.code, array_to_string(v_changes, '; '));
+  return jsonb_build_object('code', v_inc.code);
+end;
+$$;
+
+-- RPC: Dirección deja constancia de que tomó conocimiento de la falta grave
+create or replace function public.acknowledge_director(p_token text, p_code text) returns jsonb
+language plpgsql security definer set search_path = app, extensions, pg_temp as $$
+declare
+  v_user app.users := app.session_user(p_token);
+  v_inc app.incidents := app.get_incident_for(v_user, p_code);
+begin
+  perform app.require_action(v_user, v_inc, 'acknowledge',
+    'Solo Dirección (Administrador) confirma la comunicación de faltas graves o muy graves.');
+  update app.incidents set director_ack_by = v_user.id, director_ack_at = now(), updated_at = now()
+  where code = v_inc.code;
+  perform app.add_follow_up(v_inc.code, 'Convivencia', v_inc.status, v_inc.status,
+    format('Dirección tomó conocimiento de la falta %s.', lower(v_inc.severity)), null, null, v_user.id);
+  perform app.log(v_user, 'Comunicación a Dirección', 'Convivencia', v_inc.code,
+    format('Tomó conocimiento de la falta %s.', lower(v_inc.severity)));
+  if v_inc.responsible_id is not null and v_inc.responsible_id <> v_user.id then
+    perform app.notify(v_inc.responsible_id, v_inc.code, 'Dirección tomó conocimiento del caso',
+                       format('%s: %s', v_inc.code, v_inc.title), v_user.id);
+  end if;
+  return jsonb_build_object('code', v_inc.code);
+end;
+$$;
+
+-- RPC: agrega o actualiza un registro del caso.
+--   p_kind: participant | measure | meeting | referral; p_data.id presente = actualizar
+create or replace function public.case_save(p_token text, p_code text, p_kind text, p_data jsonb) returns jsonb
+language plpgsql security definer set search_path = app, extensions, pg_temp as $$
+declare
+  v_user app.users := app.session_user(p_token);
+  v_inc app.incidents := app.get_incident_for(v_user, p_code);
+  v_data jsonb := coalesce(p_data, '{}'::jsonb);
+  v_id bigint;
+  v_text text;
+  v_date date;
+  v_participant app.case_participants;
+  v_label text;
+  v_today date := (now() at time zone 'America/Lima')::date;
+begin
+  perform app.require_action(v_user, v_inc, 'case',
+    'Solo el personal que atiende el caso puede documentarlo, mientras la incidencia esté abierta.');
+  if v_inc.formal_registered_at is null then
+    perform app.fail('Primero completa el registro formal del incidente.');
+  end if;
+  if v_inc.regime = 'Ninguno' then
+    perform app.fail('Esta incidencia no está en el régimen disciplinario ni de violencia escolar.');
+  end if;
+  begin
+    v_id := nullif(v_data ->> 'id', '')::bigint;
+  exception when others then
+    perform app.fail('Identificador inválido.');
+  end;
+
+  if p_kind = 'participant' then
+    if app.text_field(v_data, 'role') not in ('Estudiante afectado', 'Estudiante involucrado', 'Testigo') then
+      perform app.fail('Selecciona el rol de la persona: estudiante afectado, estudiante involucrado o testigo.');
+    end if;
+    if length(app.text_field(v_data, 'fullName')) not between 3 and 120 then
+      perform app.fail('Ingresa los nombres y apellidos (de 3 a 120 caracteres).');
+    end if;
+    if app.text_field(v_data, 'dni') <> '' and app.text_field(v_data, 'dni') !~ '^[0-9]{8}$' then
+      perform app.fail('El DNI debe tener 8 dígitos.');
+    end if;
+    if length(app.text_field(v_data, 'gradeSection')) > 40 then
+      perform app.fail('Grado y sección admite como máximo 40 caracteres.');
+    end if;
+    if app.text_field(v_data, 'statementStatus') not in ('Pendiente', 'Registrada', 'Se abstuvo') then
+      perform app.fail('Indica el estado de la versión de los hechos.');
+    end if;
+    if app.text_field(v_data, 'statementStatus') = 'Registrada' then
+      if app.text_field(v_data, 'statement') = '' then
+        perform app.fail('Escribe la versión de los hechos tal como fue expresada.');
+      end if;
+      if app.text_field(v_data, 'statementBy') not in ('Estudiante', 'Padre, madre o apoderado') then
+        perform app.fail('Indica quién brindó la versión: el estudiante o su padre, madre o apoderado.');
+      end if;
+    end if;
+    if length(app.text_field(v_data, 'statement')) > 2000 then
+      perform app.fail('La versión de los hechos admite como máximo 2000 caracteres.');
+    end if;
+
+    if v_id is null then
+      insert into app.case_participants (incident_code, role, full_name, dni, grade_section, statement,
+                                         statement_status, statement_by, statement_at, created_by)
+      values (v_inc.code, app.text_field(v_data, 'role'), app.text_field(v_data, 'fullName'),
+              nullif(app.text_field(v_data, 'dni'), ''), app.text_field(v_data, 'gradeSection'),
+              case when app.text_field(v_data, 'statementStatus') = 'Registrada' then app.text_field(v_data, 'statement') else '' end,
+              app.text_field(v_data, 'statementStatus'),
+              case when app.text_field(v_data, 'statementStatus') = 'Registrada' then app.text_field(v_data, 'statementBy') end,
+              case when app.text_field(v_data, 'statementStatus') <> 'Pendiente' then now() end,
+              v_user.id)
+      returning id into v_id;
+      v_label := format('Agregó a una persona (%s).', lower(app.text_field(v_data, 'role')));
+    else
+      select * into v_participant from app.case_participants where id = v_id and incident_code = v_inc.code;
+      if not found then
+        perform app.not_found('No encontramos a la persona indicada en este caso.');
+      end if;
+      update app.case_participants set
+        role = app.text_field(v_data, 'role'),
+        full_name = app.text_field(v_data, 'fullName'),
+        dni = nullif(app.text_field(v_data, 'dni'), ''),
+        grade_section = app.text_field(v_data, 'gradeSection'),
+        statement = case when app.text_field(v_data, 'statementStatus') = 'Registrada' then app.text_field(v_data, 'statement') else '' end,
+        statement_status = app.text_field(v_data, 'statementStatus'),
+        statement_by = case when app.text_field(v_data, 'statementStatus') = 'Registrada' then app.text_field(v_data, 'statementBy') end,
+        statement_at = case
+          when app.text_field(v_data, 'statementStatus') = 'Pendiente' then null
+          when v_participant.statement_status = app.text_field(v_data, 'statementStatus')
+               and v_participant.statement = app.text_field(v_data, 'statement') then v_participant.statement_at
+          else now() end
+      where id = v_id;
+      v_label := case
+        when v_participant.statement_status <> app.text_field(v_data, 'statementStatus')
+             or v_participant.statement <> app.text_field(v_data, 'statement')
+          then format('Consignó la versión de los hechos (%s).', lower(app.text_field(v_data, 'role')))
+        else format('Actualizó los datos de una persona (%s).', lower(app.text_field(v_data, 'role'))) end;
+    end if;
+
+  elsif p_kind = 'measure' then
+    if v_id is not null then
+      perform app.fail('Las medidas no se modifican: elimínala con un motivo y registra una nueva.');
+    end if;
+    if not app.has_discipline(v_inc) then
+      perform app.fail('Las medidas corresponden al régimen disciplinario.');
+    end if;
+    if v_inc.severity is null then
+      perform app.fail('Antes de adoptar una medida, califica la falta como leve, grave o muy grave.');
+    end if;
+    if v_inc.severity in ('Grave', 'Muy grave') and v_user.role <> 'Administrador' then
+      perform app.forbidden('Las medidas por faltas graves o muy graves las decide Dirección (D.S. 021-2026-MINEDU).');
+    end if;
+    select * into v_participant from app.case_participants
+    where id = nullif(v_data ->> 'participantId', '')::bigint and incident_code = v_inc.code;
+    if not found or v_participant.role <> 'Estudiante involucrado' then
+      perform app.fail('Selecciona al estudiante involucrado al que se aplica la medida.');
+    end if;
+    if v_participant.statement_status = 'Pendiente' then
+      perform app.fail('Antes de decidir una medida, consigna la versión de los hechos del estudiante o de su familia (8.2).');
+    end if;
+    if app.text_field(v_data, 'kind') not in ('Formativa', 'Correctiva', 'Disciplinaria') then
+      perform app.fail('Selecciona el tipo de medida.');
+    end if;
+    if length(app.text_field(v_data, 'description')) not between 1 and 1000 then
+      perform app.fail('Describe la medida (máximo 1000 caracteres).');
+    end if;
+    if coalesce((v_data ->> 'isSeparation')::boolean, false) and v_inc.severity <> 'Muy grave' then
+      perform app.fail('La separación del estudiante solo procede ante faltas muy graves.');
+    end if;
+    insert into app.case_measures (incident_code, participant_id, kind, description, is_separation, decided_by)
+    values (v_inc.code, v_participant.id, app.text_field(v_data, 'kind'), app.text_field(v_data, 'description'),
+            coalesce((v_data ->> 'isSeparation')::boolean, false), v_user.id)
+    returning id into v_id;
+    v_label := format('Registró una medida %s.', lower(app.text_field(v_data, 'kind')));
+    perform app.notify(v_inc.responsible_id, v_inc.code, 'Se registró una medida en el caso',
+                       format('%s: %s', v_inc.code, v_inc.title), v_user.id);
+
+  elsif p_kind = 'meeting' then
+    v_date := app.parse_date(v_data ->> 'meetingDate');
+    if v_date is null then
+      perform app.fail('Selecciona la fecha de la reunión.');
+    end if;
+    if v_date > v_today or v_date < v_inc.incident_date then
+      perform app.fail('La fecha de la reunión debe estar entre la fecha del hecho y hoy.');
+    end if;
+    if length(app.text_field(v_data, 'attendees')) not between 1 and 300 then
+      perform app.fail('Indica quiénes asistieron (máximo 300 caracteres).');
+    end if;
+    if length(app.text_field(v_data, 'agreements')) not between 1 and 2000 then
+      perform app.fail('Registra los acuerdos y compromisos verificables (máximo 2000 caracteres).');
+    end if;
+    if app.text_field(v_data, 'signatureStatus') not in ('Firmada', 'Se negó a firmar', 'Pendiente de firma') then
+      perform app.fail('Indica si el acta de la reunión fue firmada.');
+    end if;
+    if length(app.text_field(v_data, 'notes')) > 1000 then
+      perform app.fail('Las notas admiten como máximo 1000 caracteres.');
+    end if;
+    if v_id is null then
+      insert into app.case_meetings (incident_code, meeting_date, attendees, agreements, signature_status, notes, created_by)
+      values (v_inc.code, v_date, app.text_field(v_data, 'attendees'), app.text_field(v_data, 'agreements'),
+              app.text_field(v_data, 'signatureStatus'), app.text_field(v_data, 'notes'), v_user.id)
+      returning id into v_id;
+      v_label := format('Registró la reunión con la familia del %s.', to_char(v_date, 'DD/MM/YYYY'));
+    else
+      update app.case_meetings set meeting_date = v_date, attendees = app.text_field(v_data, 'attendees'),
+        agreements = app.text_field(v_data, 'agreements'), signature_status = app.text_field(v_data, 'signatureStatus'),
+        notes = app.text_field(v_data, 'notes')
+      where id = v_id and incident_code = v_inc.code;
+      if not found then
+        perform app.not_found('No encontramos la reunión indicada en este caso.');
+      end if;
+      v_label := format('Actualizó la reunión con la familia del %s (%s).', to_char(v_date, 'DD/MM/YYYY'),
+                        lower(app.text_field(v_data, 'signatureStatus')));
+    end if;
+
+  elsif p_kind = 'referral' then
+    if v_id is not null then
+      perform app.fail('Las derivaciones no se modifican: elimínala con un motivo y registra una nueva.');
+    end if;
+    if app.text_field(v_data, 'entity') not in ('DEMUNA', 'UPE', 'PNP', 'Fiscalía', 'UGEL', 'Centro de salud', 'Otra') then
+      perform app.fail('Selecciona la institución a la que se deriva.');
+    end if;
+    if length(app.text_field(v_data, 'officeNumber')) not between 1 and 60 then
+      perform app.fail('Ingresa el número de oficio (máximo 60 caracteres).');
+    end if;
+    v_date := app.parse_date(v_data ->> 'referralDate');
+    if v_date is null or v_date > v_today or v_date < v_inc.incident_date then
+      perform app.fail('La fecha de la derivación debe estar entre la fecha del hecho y hoy.');
+    end if;
+    if length(app.text_field(v_data, 'notes')) > 500 then
+      perform app.fail('Las notas admiten como máximo 500 caracteres.');
+    end if;
+    insert into app.case_referrals (incident_code, entity, office_number, referral_date, notes, created_by)
+    values (v_inc.code, app.text_field(v_data, 'entity'), app.text_field(v_data, 'officeNumber'), v_date,
+            app.text_field(v_data, 'notes'), v_user.id)
+    returning id into v_id;
+    v_label := format('Derivó el caso a %s (oficio %s).', app.text_field(v_data, 'entity'), app.text_field(v_data, 'officeNumber'));
+
+  else
+    perform app.fail('Tipo de registro no reconocido.');
+  end if;
+
+  update app.incidents set updated_at = now() where code = v_inc.code;
+  perform app.add_follow_up(v_inc.code, 'Convivencia', v_inc.status, v_inc.status, v_label, null, null, v_user.id);
+  perform app.log(v_user, 'Datos del caso', 'Convivencia', v_inc.code, v_label);
+  return jsonb_build_object('id', v_id);
+end;
+$$;
+
+-- RPC: elimina un registro del caso (con motivo; queda en el historial)
+create or replace function public.case_remove(p_token text, p_code text, p_kind text, p_id bigint, p_reason text) returns jsonb
+language plpgsql security definer set search_path = app, extensions, pg_temp as $$
+declare
+  v_user app.users := app.session_user(p_token);
+  v_inc app.incidents := app.get_incident_for(v_user, p_code);
+  v_reason text := trim(coalesce(p_reason, ''));
+  v_label text;
+  v_severity_guard boolean;
+begin
+  perform app.require_action(v_user, v_inc, 'case',
+    'Solo el personal que atiende el caso puede documentarlo, mientras la incidencia esté abierta.');
+  if v_reason = '' then
+    perform app.fail('Indica el motivo de la eliminación.');
+  end if;
+
+  if p_kind = 'participant' then
+    if exists (select 1 from app.case_measures where participant_id = p_id) then
+      perform app.fail('No se puede quitar a un estudiante con medidas registradas. Elimina primero sus medidas.');
+    end if;
+    delete from app.case_participants where id = p_id and incident_code = v_inc.code;
+    v_label := 'Quitó a una persona del caso.';
+  elsif p_kind = 'measure' then
+    v_severity_guard := v_inc.severity in ('Grave', 'Muy grave') and v_user.role <> 'Administrador';
+    if v_severity_guard then
+      perform app.forbidden('Solo Dirección puede dejar sin efecto medidas por faltas graves o muy graves.');
+    end if;
+    delete from app.case_measures where id = p_id and incident_code = v_inc.code;
+    v_label := 'Dejó sin efecto una medida.';
+  elsif p_kind = 'meeting' then
+    delete from app.case_meetings where id = p_id and incident_code = v_inc.code;
+    v_label := 'Eliminó el registro de una reunión con la familia.';
+  elsif p_kind = 'referral' then
+    delete from app.case_referrals where id = p_id and incident_code = v_inc.code;
+    v_label := 'Eliminó una derivación.';
+  else
+    perform app.fail('Tipo de registro no reconocido.');
+  end if;
+  if not found then
+    perform app.not_found('No encontramos el registro indicado en este caso.');
+  end if;
+
+  update app.incidents set updated_at = now() where code = v_inc.code;
+  perform app.add_follow_up(v_inc.code, 'Convivencia', v_inc.status, v_inc.status, v_label, v_reason, null, v_user.id);
+  perform app.log(v_user, 'Datos del caso', 'Convivencia', v_inc.code, v_label || ' Motivo: ' || v_reason);
+  return jsonb_build_object('code', v_inc.code);
+end;
+$$;
+
+-- =====================================================================
 -- Permisos de ejecución: solo las RPC públicas son invocables
 -- =====================================================================
 do $$
@@ -1948,7 +2584,8 @@ begin
     'evidence_begin', 'evidence_chunk', 'evidence_finish', 'evidence_chunk_get', 'evidence_void',
     'list_users', 'create_user', 'update_user', 'set_user_status', 'reset_user_password',
     'list_audit', 'list_notifications', 'mark_notifications_read',
-    'get_acta', 'verify_acta', 'submit_survey', 'log_perf', 'perf_stats', 'quality_stats', 'report_incidents'
+    'get_acta', 'verify_acta', 'submit_survey', 'log_perf', 'perf_stats', 'quality_stats', 'report_incidents',
+    'register_formal', 'update_case', 'acknowledge_director', 'case_save', 'case_remove'
   ] loop
     for r in
       select p.oid::regprocedure as sig

@@ -1,4 +1,5 @@
 import type { ActaMeta } from './acta'
+import type { FormalFormData, IncidentCase, Regime, Severity } from './case'
 import type { UserRef } from './user'
 
 export const incidentStatuses = [
@@ -41,6 +42,9 @@ export type IncidentAction =
   | 'observe'
   | 'evidence'
   | 'survey'
+  | 'formal'
+  | 'case'
+  | 'acknowledge'
 
 export type TransitionAction = 'review' | 'assign' | 'start' | 'discard' | 'reopen'
 
@@ -58,6 +62,11 @@ export interface IncidentSummary {
   reporter: UserRef | null
   responsible: UserRef | null
   allowedActions: IncidentAction[]
+  /** Solo para el personal: indicadores del caso de convivencia. */
+  regime?: Regime
+  severity?: Severity | null
+  formalRegistered?: boolean
+  directorPending?: boolean
 }
 
 export type FollowUpKind =
@@ -68,6 +77,8 @@ export type FollowUpKind =
   | 'Edición'
   | 'Observación'
   | 'Evidencia'
+  | 'Registro formal'
+  | 'Convivencia'
 
 export interface FollowUp {
   id: number
@@ -128,6 +139,8 @@ export interface IncidentDetail extends IncidentSummary {
   actas: ActaMeta[]
   /** Encuesta del cierre vigente (RN-012); null si no corresponde o no puedes verla. */
   survey: SurveyInfo | null
+  /** Registro formal y caso de convivencia; null para estudiantes (D.S. 021-2026-MINEDU). */
+  case: IncidentCase | null
 }
 
 export const surveyResolvedOptions = ['Sí', 'Parcialmente', 'No'] as const
@@ -162,6 +175,8 @@ export interface IncidentFormData {
   incidentDate: string
   location: string
   involvedPeople: string
+  /** Registro formal en el mismo paso: solo cuando registra el personal. */
+  formal?: FormalFormData
 }
 
 export interface ResolutionFormData {

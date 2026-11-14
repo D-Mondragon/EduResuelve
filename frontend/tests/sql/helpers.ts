@@ -63,6 +63,14 @@ export async function setupDb(): Promise<TestDb> {
   return { db, rpc, login, expectError }
 }
 
+/** Datos mínimos del registro formal (D.S. 021-2026-MINEDU, 8.2), exigido antes de asignar. */
+export const formalData = {
+  regime: 'Ninguno',
+  incidentTime: '10:30',
+  immediateActions: 'Se separó a los estudiantes y se informó a Orientación.',
+  objective: true,
+}
+
 export const validIncident = {
   title: 'Prueba de registro',
   description: 'Descripción de prueba suficiente.',

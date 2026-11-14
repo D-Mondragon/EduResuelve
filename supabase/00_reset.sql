@@ -19,7 +19,8 @@ begin
       'evidence_begin', 'evidence_chunk', 'evidence_finish', 'evidence_chunk_get', 'evidence_void',
       'list_users', 'create_user', 'update_user', 'set_user_status', 'reset_user_password',
       'list_audit', 'list_notifications', 'mark_notifications_read',
-      'get_acta', 'verify_acta', 'submit_survey', 'log_perf', 'perf_stats', 'quality_stats', 'report_incidents')
+      'get_acta', 'verify_acta', 'submit_survey', 'log_perf', 'perf_stats', 'quality_stats', 'report_incidents',
+      'register_formal', 'update_case', 'acknowledge_director', 'case_save', 'case_remove')
   loop
     execute format('drop function if exists %s cascade', r.sig);
   end loop;

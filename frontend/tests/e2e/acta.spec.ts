@@ -67,7 +67,7 @@ test.describe('Acta de resolución (RN-011)', () => {
     await page.goto('/incidencias/ER-2026-0004/acta/ACT-2026-0004-02')
     const acta = page.getByRole('article')
     await expect(acta).toContainText('Versión para el interesado')
-    await expect(acta).toContainText('Medidas adoptadas y resolución')
+    await expect(acta).toContainText('Resultado obtenido')
     await expect(acta).not.toContainText('Familia y estudiante')
     await expect(acta).not.toContainText('Personas involucradas')
   })

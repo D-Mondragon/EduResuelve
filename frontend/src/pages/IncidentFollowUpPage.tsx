@@ -11,6 +11,8 @@ import {
 } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
+import { FormalFields } from '../components/incident/FormalFields'
+import { emptyFormal, validateFormal, type FormalErrors } from '../lib/formal'
 import { IncidentHeader } from '../components/incident/IncidentHeader'
 import { Timeline } from '../components/incident/Timeline'
 import { useToast } from '../components/toast/toastContext'
@@ -25,6 +27,7 @@ import { api, ApiError } from '../lib/api'
 import { can } from '../lib/permissions'
 import { cn } from '../lib/ui'
 import type { IncidentAction, IncidentStatus } from '../types/incident'
+import type { FormalFormData } from '../types/case'
 import type { UserRef } from '../types/user'
 
 type FollowUpAction = Extract<IncidentAction, 'review' | 'assign' | 'start' | 'discard' | 'reopen' | 'reassign'>
@@ -94,6 +97,8 @@ function IncidentFollowUpPage() {
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
   const [confirming, setConfirming] = useState(false)
+  const [formal, setFormal] = useState<FormalFormData>(emptyFormal)
+  const [formalErrors, setFormalErrors] = useState<FormalErrors>({})
 
   const available = incident ? order.filter((action) => can(incident, action)) : []
 
@@ -112,6 +117,9 @@ function IncidentFollowUpPage() {
   const needsResponsible = action === 'assign' || action === 'reassign'
   const needsReason = action === 'discard' || action === 'reopen' || action === 'reassign'
   const needsObservation = action === 'review' || action === 'assign' || action === 'start'
+  // El registro formal (8.2) se completa al revisar, y es obligatorio antes de asignar
+  const needsFormal =
+    (action === 'review' || action === 'assign') && can(incident, 'formal') && !incident.case?.formalRegisteredAt
 
   function choose(next: FollowUpAction) {
     setSelected(next)
@@ -131,8 +139,12 @@ function IncidentFollowUpPage() {
             : 'Debe indicar el motivo de la reasignación.'
     }
     if (needsObservation && !observation.trim()) nextErrors.observation = 'Ingresa una observación para el seguimiento.'
+    const nextFormalErrors = needsFormal ? validateFormal(formal) : {}
     setErrors(nextErrors)
-    return Object.keys(nextErrors).length === 0
+    setFormalErrors(nextFormalErrors)
+    const firstFormal = Object.keys(nextFormalErrors)[0]
+    if (firstFormal) document.getElementById(`formal-${firstFormal}`)?.focus()
+    return Object.keys(nextErrors).length === 0 && !firstFormal
   }
 
   async function execute() {
@@ -141,6 +153,7 @@ function IncidentFollowUpPage() {
     setSaving(true)
     setFormError('')
     try {
+      if (needsFormal) await api.registerFormal(incident.code, formal)
       if (action === 'reassign') {
         await api.reassign(incident.code, responsibleId, reason)
       } else {
@@ -236,6 +249,19 @@ function IncidentFollowUpPage() {
                         Cambio de estado:
                         <StatusBadge status={incident.status} />→<StatusBadge status={actionInfo[action].to!} />
                       </p>
+                    )}
+
+                    {needsFormal && (
+                      <div className="rounded-lg border border-line p-4 sm:p-5">
+                        <FormalFields
+                          errors={formalErrors}
+                          onChange={(next, key) => {
+                            setFormal(next)
+                            setFormalErrors((current) => ({ ...current, [key]: undefined }))
+                          }}
+                          values={formal}
+                        />
+                      </div>
                     )}
 
                     {needsResponsible && (
