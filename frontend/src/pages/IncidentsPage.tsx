@@ -7,7 +7,9 @@ import { PriorityBadge, StatusBadge } from '../components/ui/Badge'
 import { Button, ButtonLink } from '../components/ui/Button'
 import { EmptyState, ErrorState, LoadingState, PageHeader } from '../components/ui/Feedback'
 import { controlClass } from '../components/ui/Field'
+import { Pagination } from '../components/ui/Pagination'
 import { useAsync } from '../hooks/useAsync'
+import { usePagination } from '../hooks/usePagination'
 import { api } from '../lib/api'
 import { formatDate, formatRelative, pluralize } from '../lib/format'
 import { isManager } from '../lib/permissions'
@@ -40,6 +42,7 @@ function IncidentsPage() {
     updateParams((next) => {
       if (value) next.set(key, value)
       else next.delete(key)
+      next.delete('pagina') // un filtro nuevo vuelve a la primera página
     })
   }
 
@@ -59,6 +62,8 @@ function IncidentsPage() {
       )
     })
   }, [data, search, status, priority, category, onlyReassign])
+  const pager = usePagination(filtered.length)
+  const pageItems = filtered.slice(pager.info.start, pager.info.end)
 
   const title = user.role === 'Estudiante' ? 'Mis incidencias' : 'Incidencias'
   const description = isManager(user.role)
@@ -158,7 +163,13 @@ function IncidentsPage() {
               {hasFilters && ` de ${data?.length ?? 0}`}
             </p>
             {hasFilters && (
-              <Button icon={FilterX} onClick={() => updateParams((next) => [...next.keys()].forEach((key) => next.delete(key)))} size="sm" variant="ghost">
+              <Button
+                icon={FilterX}
+                // Quita los filtros y vuelve a la primera página; conserva las filas por página
+                onClick={() => updateParams((next) => [...next.keys()].filter((key) => key !== 'tam').forEach((key) => next.delete(key)))}
+                size="sm"
+                variant="ghost"
+              >
                 Limpiar filtros
               </Button>
             )}
@@ -186,7 +197,7 @@ function IncidentsPage() {
           ) : (
             <>
               {/* Tabla (escritorio) */}
-              <div className="hidden overflow-hidden rounded-xl border border-line bg-surface shadow-sm lg:block">
+              <div className="hidden overflow-x-auto rounded-xl border border-line bg-surface shadow-sm lg:block">
                 <table className="w-full text-left text-sm">
                   <caption className="sr-only">Listado de incidencias</caption>
                   <thead className="bg-surface-2 text-xs font-semibold uppercase tracking-wide text-muted">
@@ -201,9 +212,9 @@ function IncidentsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line">
-                    {filtered.map((incident) => (
+                    {pageItems.map((incident) => (
                       <tr className="group relative hover:bg-surface-2" key={incident.code}>
-                        <td className="max-w-sm px-5 py-3.5">
+                        <td className="max-w-xs px-5 py-3.5">
                           <Link
                             className="after:absolute after:inset-0 focus-visible:outline-none"
                             to={`/incidencias/${encodeURIComponent(incident.code)}`}
@@ -239,7 +250,7 @@ function IncidentsPage() {
 
               {/* Tarjetas (móvil y tablet) */}
               <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:hidden">
-                {filtered.map((incident) => (
+                {pageItems.map((incident) => (
                   <li key={incident.code}>
                     <Link
                       className="block h-full rounded-xl border border-line bg-surface p-4 shadow-sm transition hover:border-emerald-500/50 focus-visible:outline-2 focus-visible:outline-emerald-600"
@@ -279,6 +290,10 @@ function IncidentsPage() {
                   </li>
                 ))}
               </ul>
+
+              <div className="rounded-xl border border-line bg-surface shadow-sm">
+                <Pagination className="border-t-0" label="incidencias" {...pager} />
+              </div>
             </>
           )}
         </>

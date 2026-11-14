@@ -140,6 +140,9 @@ export function paginate(total: number, page: number, size: number) {
 }
 export type PageInfo = ReturnType<typeof paginate>
 
+/** Fila fuera de la página actual: oculta en pantalla, pero se imprime (el PDF incluye todo). */
+export const pageRowClass = (index: number, info: PageInfo) => (index < info.start || index >= info.end ? 'hidden print:table-row' : '')
+
 /**
  * Ruta de regreso desde un acta. Solo se aceptan rutas internas de Reportes,
  * para que el parámetro no pueda usarse para redirigir a otro sitio.
