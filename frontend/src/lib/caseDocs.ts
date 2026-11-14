@@ -89,3 +89,27 @@ export function legalBasis(c: ActaCase | undefined): string[] {
   items.push('D.S. 004-2018-MINEDU, Lineamientos para la gestión de la convivencia escolar')
   return [...items, ...base]
 }
+
+/** Instituciones a las que se puede dirigir una copia para terceros. */
+export const thirdPartyRecipients = ['DEMUNA', 'UGEL', 'UPE', 'PNP', 'Fiscalía', 'Centro de salud', 'Otra'] as const
+
+/** Iniciales sin puntos ni tildes, aptas para un nombre de archivo: "Mateo Prueba Uno" → "MPU". */
+export function fileInitials(fullName: string): string {
+  return nameInitials(fullName)
+    .normalize('NFD')
+    .replace(/[^A-Za-z]/g, '')
+}
+
+/**
+ * Nombre del PDF del acta (el navegador lo toma del título de la página). Solo el número del acta
+ * y, en las copias, a quién va dirigida; nunca el asunto del caso:
+ *   ACT-2026-0012-02 · ACT-2026-0012-02-familia-DRS · ACT-2026-0012-02-terceros-DEMUNA
+ */
+export function actaFileName(number: string, copy: ActaCopy, familyName?: string | null, recipient?: string | null): string {
+  if (copy === 'familia') return familyName ? `${number}-familia-${fileInitials(familyName)}` : `${number}-familia`
+  if (copy === 'terceros') {
+    const to = (recipient ?? '').normalize('NFD').replace(/[^A-Za-z0-9]+/g, '')
+    return to ? `${number}-terceros-${to}` : `${number}-terceros`
+  }
+  return number
+}
