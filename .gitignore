@@ -51,3 +51,13 @@ playwright-report/
 .vercel
 .env*
 !.env.example
+
+# Documentos de trabajo y de cursos (se conservan solo en local; el repositorio contiene únicamente el sistema)
+*.pdf
+*.docx
+auditoria_frontend_*.md
+Contexto_EduResuelve_*.txt
+definiciones_EduResuelve_*.md
+Supabase_guia.md
+Vercel_guia.md
+docs/
