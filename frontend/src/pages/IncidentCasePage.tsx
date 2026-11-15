@@ -1,7 +1,6 @@
 import {
   AlertTriangle,
   BadgeCheck,
-  ExternalLink,
   ClipboardCheck,
   Gavel,
   Handshake,
@@ -30,9 +29,8 @@ import { Button } from '../components/ui/Button'
 import { Alert, Card, CardHeader, DetailItem, ErrorState, LoadingState } from '../components/ui/Feedback'
 import { Field, Input, Select } from '../components/ui/Field'
 import { useIncident } from '../hooks/useIncident'
-import { formatFolio, maskDni, SISEVE_URL, splitAgreements } from '../lib/caseDocs'
+import { formatFolio, maskDni, splitAgreements } from '../lib/caseDocs'
 import { useAsync } from '../hooks/useAsync'
-import { buttonClass } from '../components/ui/buttonClass'
 import { api, ApiError } from '../lib/api'
 import { formatDate, formatDateTime } from '../lib/format'
 import { can } from '../lib/permissions'
@@ -242,20 +240,9 @@ function ViolenceCard({ incident, c, onSaved }: { incident: IncidentDetail; c: I
             </Select>
           </Field>
           <Field
-            addon={
-              <a
-                className={buttonClass('secondary', 'md', 'shrink-0')}
-                href={SISEVE_URL}
-                rel="noopener noreferrer"
-                target="_blank"
-                title="Abre el portal del SíseVe (MINEDU) en una pestaña nueva"
-              >
-                <ExternalLink aria-hidden="true" className="size-4" />
-                Ir al SíseVe
-                <span className="sr-only"> (abre en una pestaña nueva)</span>
-              </a>
-            }
-            hint="Registra el caso en el SíseVe y copia aquí el código que te asigna."
+            // Sin enlace directo: el dominio www.siseve.pe sirvió una falsa verificación con malware (15/11/2026).
+            // El caso se registra entrando al SíseVe desde el portal oficial del MINEDU (minedu.gob.pe).
+            hint="Registra el caso en el SíseVe ingresando desde el portal oficial del MINEDU (minedu.gob.pe) y copia aquí el código."
             id="case-siseveCode"
             label="Código SíseVe"
           >
