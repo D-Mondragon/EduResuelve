@@ -96,6 +96,28 @@ body {
   .acta-sheet {
     page: acta;
   }
+  /* Impresión compacta del acta (en pantalla se ve igual): menos hojas y menos cortes */
+  .acta-sheet .text-sm {
+    font-size: 9.5pt !important;
+    line-height: 1.42 !important;
+  }
+  .acta-sheet .leading-6 {
+    line-height: 1.42 !important;
+  }
+  .acta-sheet dl {
+    row-gap: 2.2mm !important;
+  }
+  /* Cada sección se mantiene en una sola hoja; las más largas que una hoja se parten entre bloques */
+  .acta-sheet .acta-section {
+    margin-top: 5mm !important;
+    break-inside: avoid;
+  }
+  .acta-sheet .acta-section > div {
+    margin-top: 2.5mm !important;
+  }
+  .acta-sheet .acta-closing {
+    break-inside: avoid;
+  }
   body,
   .bg-canvas {
     background: #fff !important;

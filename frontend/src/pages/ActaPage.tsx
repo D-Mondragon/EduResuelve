@@ -35,7 +35,7 @@ const QrCode = lazy(() => import('../components/QrCode').then((m) => ({ default:
 
 function Section({ number, title, children }: { number: number | string; title: string; children: ReactNode }) {
   return (
-    <section className="mt-7">
+    <section className="acta-section mt-7">
       <h2 className="flex break-after-avoid items-center gap-2 border-b-2 border-emerald-700 pb-1 text-[0.95rem] font-bold uppercase tracking-wide text-emerald-800">
         <span className="flex size-6 items-center justify-center rounded-full bg-emerald-700 text-xs text-white">{number}</span>
         {title}
@@ -184,7 +184,7 @@ function ActaDocument({
           <Field label="Prioridad">{c.incident.priority}</Field>
           <Field label="Fecha del hecho">
             {formatDate(c.incident.incidentDate, 'long')}
-            {kase?.incidentTime && `, ${kase.incidentTime} h`}
+            {kase?.incidentTime && <span className="whitespace-nowrap">, {kase.incidentTime} h</span>}
           </Field>
           <Field label="Lugar">{c.incident.location}</Field>
           <Field label="Reportada el">{formatDateTime(c.incident.registeredAt)}</Field>
@@ -206,9 +206,6 @@ function ActaDocument({
             </Field>
             <Field label="Fecha del registro formal">{formatDateTime(kase.formalRegisteredAt)}</Field>
           </dl>
-          <p className="mt-2 text-xs text-slate-500">
-            Registro objetivo y cronológico, sin calificativos, diagnósticos ni conclusiones sobre responsabilidad.
-          </p>
         </Section>
       )}
 
@@ -425,45 +422,48 @@ function ActaDocument({
         )}
       </Section>
 
-      <Section number={next()} title="Validación y cierre">
-        {c.closure ? (
-          <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
-            <Field label="Cerrada por">{personLabel(c.closure.closedBy)}</Field>
-            <Field label="Fecha de cierre">{formatDateTime(c.closure.closedAt)}</Field>
-            {full && <Field label="Observaciones de cierre" wide>{c.closure.observations || 'Sin observaciones.'}</Field>}
+      {/* Validación, cierre y firmas van juntos en la misma hoja */}
+      <div className="acta-closing">
+        <Section number={next()} title="Validación y cierre">
+          {c.closure ? (
+            <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+              <Field label="Cerrada por">{personLabel(c.closure.closedBy)}</Field>
+              <Field label="Fecha de cierre">{formatDateTime(c.closure.closedAt)}</Field>
+              {full && <Field label="Observaciones de cierre" wide>{c.closure.observations || 'Sin observaciones.'}</Field>}
+            </dl>
+          ) : (
+            <p className="acta-prose text-sm text-slate-700">
+              Pendiente de validación por Orientación o Administración. Esta acta será reemplazada por el acta definitiva
+              al cerrarse la incidencia.
+            </p>
+          )}
+          <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-3 rounded-md bg-slate-50 p-3 sm:grid-cols-2">
+            <Field label="Tiempo hasta la resolución">{formatDuration(c.metrics.hoursToResolve)}</Field>
+            <Field label="Tiempo hasta el cierre">{c.closure ? formatDuration(c.metrics.hoursToClose) : 'En curso'}</Field>
           </dl>
-        ) : (
-          <p className="acta-prose text-sm text-slate-700">
-            Pendiente de validación por Orientación o Administración. Esta acta será reemplazada por el acta definitiva
-            al cerrarse la incidencia.
-          </p>
-        )}
-        <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-3 rounded-md bg-slate-50 p-3 sm:grid-cols-2">
-          <Field label="Tiempo hasta la resolución">{formatDuration(c.metrics.hoursToResolve)}</Field>
-          <Field label="Tiempo hasta el cierre">{c.closure ? formatDuration(c.metrics.hoursToClose) : 'En curso'}</Field>
-        </dl>
-      </Section>
+        </Section>
 
-      {/* Firmas: según el caso (registro formal, Dirección en faltas graves o violencia, familia si hubo reunión) */}
-      <section aria-label="Firmas" className="mt-8 grid grid-cols-1 gap-x-6 gap-y-2 break-inside-avoid sm:grid-cols-3">
-        {kase?.formalRegisteredAt && kase.formalRegisteredBy?.fullName !== c.responsible?.fullName && (
-          <SignatureLine name={kase.formalRegisteredBy?.fullName} role="Personal que realizó el registro formal" />
-        )}
-        <SignatureLine
-          name={c.responsible?.fullName}
-          role={
-            kase?.formalRegisteredAt && kase.formalRegisteredBy?.fullName === c.responsible?.fullName
-              ? 'Registro formal y responsable de la atención'
-              : 'Responsable de la atención'
-          }
-        />
-        <SignatureLine name={c.closure?.closedBy?.fullName} role="Validó y cerró (Orientación / Administración)" />
-        {signDirector && <SignatureLine name={kase?.directorAckBy?.fullName} role="Dirección" />}
-        {kase && (kase.meetings.length > 0 || copy === 'familia') && (
-          <SignatureLine name={copy === 'familia' && familyStudent ? `Familia de ${familyStudent.name}` : undefined} role="Padre, madre o apoderado" />
-        )}
-        {!kase && <SignatureLine name={c.reporter?.fullName} role="Conformidad de quien registró (opcional)" />}
-      </section>
+        {/* Firmas: según el caso (registro formal, Dirección en faltas graves o violencia, familia si hubo reunión) */}
+        <section aria-label="Firmas" className="mt-8 grid grid-cols-1 gap-x-6 gap-y-2 break-inside-avoid sm:grid-cols-3">
+          {kase?.formalRegisteredAt && kase.formalRegisteredBy?.fullName !== c.responsible?.fullName && (
+            <SignatureLine name={kase.formalRegisteredBy?.fullName} role="Personal que realizó el registro formal" />
+          )}
+          <SignatureLine
+            name={c.responsible?.fullName}
+            role={
+              kase?.formalRegisteredAt && kase.formalRegisteredBy?.fullName === c.responsible?.fullName
+                ? 'Registro formal y responsable de la atención'
+                : 'Responsable de la atención'
+            }
+          />
+          <SignatureLine name={c.closure?.closedBy?.fullName} role="Validó y cerró (Orientación / Administración)" />
+          {signDirector && <SignatureLine name={kase?.directorAckBy?.fullName} role="Dirección" />}
+          {kase && (kase.meetings.length > 0 || copy === 'familia') && (
+            <SignatureLine name={copy === 'familia' && familyStudent ? `Familia de ${familyStudent.name}` : undefined} role="Padre, madre o apoderado" />
+          )}
+          {!kase && <SignatureLine name={c.reporter?.fullName} role="Conformidad de quien registró (opcional)" />}
+        </section>
+      </div>
 
       {/* Anexo: los archivos respaldan lo actuado; no forman parte del cuerpo firmado */}
       <Section number="A" title="Anexo · Relación de evidencias">
@@ -523,7 +523,8 @@ function ActaDocument({
               rel="noopener"
               target="_blank"
             >
-              {link}
+              {/* Texto corto: el QR y el enlace llevan la dirección completa con el código */}
+              {link.replace(/^https?:\/\//, '').replace(/\?.*$/, '')}
               <span className="sr-only"> (abre en una pestaña nueva)</span>
             </a>
             . Huella SHA-256 del contenido: <span className="font-mono">{acta.contentHash.slice(0, 16)}…</span>
@@ -691,7 +692,8 @@ function ActaPage() {
         )}
 
         <p className="text-sm text-muted">
-          Para guardarla, pulsa <strong>Descargar PDF</strong> y elige <strong>“Guardar como PDF”</strong> en el destino de impresión.
+          Para guardarla, pulsa <strong>Descargar PDF</strong>, elige <strong>“Guardar como PDF”</strong> en el destino y, en{' '}
+          <strong>Más opciones</strong>, desmarca <strong>“Encabezados y pies de página”</strong> (el acta ya trae su numeración).
         </p>
       </div>
 
