@@ -200,6 +200,7 @@ export const api = {
   acknowledgeDirector: (code: string) => authed<{ code: string }>('acknowledge_director', { p_code: code }),
   caseSave: (code: string, kind: CaseKind, data: Record<string, unknown>) =>
     authed<{ id: number }>('case_save', { p_code: code, p_kind: kind, p_data: data }),
+  caseSuggestions: () => authed<{ year: number; nextFolio: number; nextOficio: number }>('case_suggestions'),
   caseRemove: (code: string, kind: CaseKind, id: number, reason: string) =>
     authed<{ code: string }>('case_remove', { p_code: code, p_kind: kind, p_id: id, p_reason: reason }),
 

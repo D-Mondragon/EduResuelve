@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ActaCase } from '../types/acta'
-import { actaFileName, splitAgreements, familyCandidates, legalBasis, maskDni, nameInitials, needsDirectorSignature, showParticipant, visibleMeasures } from './caseDocs'
+import { actaFileName, formatFolio, formatOficio, splitAgreements, familyCandidates, legalBasis, maskDni, nameInitials, needsDirectorSignature, showParticipant, visibleMeasures } from './caseDocs'
 import { emptyFormal, validateFormal } from './formal'
 
 const kase: ActaCase = {
@@ -109,5 +109,13 @@ describe('Acuerdos y compromisos', () => {
       'Acompañamiento semanal', 'Taller de convivencia', 'Informe en 15 días',
     ])
     expect(splitAgreements('Un único acuerdo sin numerar.')).toEqual(['Un único acuerdo sin numerar.'])
+  })
+})
+
+describe('Folio y oficio propuestos', () => {
+  it('CP-UI-40: siguen la convención N.° correlativo-año-siglas y el folio de 3 dígitos', () => {
+    expect(formatOficio(16, 2026, 'IE/D')).toBe('Oficio N.° 016-2026-IE/D')
+    expect(formatOficio(1234, 2026, 'IE 1234/D')).toBe('Oficio N.° 1234-2026-IE 1234/D')
+    expect(formatFolio(19)).toBe('019')
   })
 })

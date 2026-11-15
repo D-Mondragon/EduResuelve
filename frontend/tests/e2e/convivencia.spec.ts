@@ -60,10 +60,22 @@ test.describe.serial('Convivencia escolar (D.S. 021-2026-MINEDU)', () => {
     await expect(page.getByText('Pendiente de confirmación de Dirección.')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Registrar medida' })).toBeDisabled()
 
+    // El SíseVe se abre en su portal oficial; el folio se propone (el siguiente del Libro)
+    await expect(page.getByRole('link', { name: /Ir al SíseVe/ })).toHaveAttribute('href', 'https://www.siseve.pe/')
+    await page.getByRole('button', { name: /^Usar el \d{3}$/ }).click()
+    await expect(page.getByLabel('Folio del Libro de Registro')).toHaveValue(/^\d{3}$/)
     await page.getByLabel('Código SíseVe').fill('SV-2026-009999')
     await page.getByLabel('Folio del Libro de Registro').fill('052')
     await page.getByRole('button', { name: 'Guardar datos del protocolo' }).click()
     await expect(page.getByText('Datos del protocolo guardados.')).toBeVisible()
+
+    // Derivación: el número de oficio llega propuesto con el siguiente correlativo del año
+    await page.getByRole('button', { name: 'Registrar derivación' }).click()
+    const referral = page.getByRole('dialog')
+    await expect(referral.getByLabel('Número de oficio')).toHaveValue(/^Oficio N\.° \d{3}-\d{4}-IE\/D$/)
+    await referral.getByLabel('Institución').selectOption('DEMUNA')
+    await referral.getByRole('button', { name: 'Guardar' }).click()
+    await expect(page.getByText('Derivación registrada.')).toBeVisible()
   })
 
   test('E2E-CON-02: Dirección toma conocimiento y decide la medida', async ({ page }) => {
@@ -125,7 +137,9 @@ test.describe.serial('Convivencia escolar (D.S. 021-2026-MINEDU)', () => {
     await expect(acta).not.toContainText('Suspensión de actividades')
 
     await page.getByLabel('Versión del documento').selectOption('terceros')
-    await expect(acta).toContainText('Copia para terceros')
+    // Propone la institución a la que se derivó el caso
+    await expect(acta).toContainText('Copia para DEMUNA')
+    await expect(acta).toContainText(/Oficio N\.° \d{3}-\d{4}-IE\/D/)
     await page.getByLabel('Dirigida a').selectOption('Fiscalía')
     await expect(acta).toContainText('Copia para Fiscalía')
     await expect(page).toHaveTitle(/^ACT-\d{4}-\d{4}-\d{2}-terceros-Fiscalia$/)

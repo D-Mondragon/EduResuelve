@@ -273,4 +273,24 @@ describe('Registro formal y convivencia (D.S. 021-2026-MINEDU)', () => {
     const camila = await detail(docente, code).catch(() => null)
     expect(camila).toBeNull()
   })
+
+  it('CP-CON-12: propone el siguiente folio del Libro y el siguiente correlativo de oficio del año', async () => {
+    const year = Number(new Intl.DateTimeFormat('en', { timeZone: 'America/Lima', year: 'numeric' }).format(new Date()))
+    let s = await t.rpc('case_suggestions', { p_token: orientador })
+    expect(s).toEqual({ year, nextFolio: 1, nextOficio: 1 })
+
+    const { code } = await disciplineCase('Disciplina y violencia')
+    await t.rpc('update_case', { p_token: orientador, p_code: code, p_data: { bookFolio: '018' } })
+    const referral = (officeNumber: string) => t.rpc('case_save', {
+      p_token: orientador, p_code: code, p_kind: 'referral',
+      p_data: { entity: 'DEMUNA', officeNumber, referralDate: '2026-10-02' },
+    })
+    await referral(`Oficio N.° 014-${year}-IE/D`)
+    await referral(`OFICIO N° 9-${year}-DIR IE`)
+    await referral(`Oficio N.° 120-${year - 1}-IE/D`) // otro año: no cuenta
+    s = await t.rpc('case_suggestions', { p_token: orientador })
+    expect(s).toEqual({ year, nextFolio: 19, nextOficio: 15 })
+
+    await t.expectError(t.rpc('case_suggestions', { p_token: estudiante }), 'PT403')
+  })
 })

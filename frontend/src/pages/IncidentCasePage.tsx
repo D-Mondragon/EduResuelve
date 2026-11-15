@@ -1,6 +1,7 @@
 import {
   AlertTriangle,
   BadgeCheck,
+  ExternalLink,
   ClipboardCheck,
   Gavel,
   Handshake,
@@ -29,7 +30,9 @@ import { Button } from '../components/ui/Button'
 import { Alert, Card, CardHeader, DetailItem, ErrorState, LoadingState } from '../components/ui/Feedback'
 import { Field, Input, Select } from '../components/ui/Field'
 import { useIncident } from '../hooks/useIncident'
-import { maskDni, splitAgreements } from '../lib/caseDocs'
+import { formatFolio, maskDni, SISEVE_URL, splitAgreements } from '../lib/caseDocs'
+import { useAsync } from '../hooks/useAsync'
+import { buttonClass } from '../components/ui/buttonClass'
 import { api, ApiError } from '../lib/api'
 import { formatDate, formatDateTime } from '../lib/format'
 import { can } from '../lib/permissions'
@@ -177,7 +180,10 @@ function SeverityCard({ incident, c, onSaved }: { incident: IncidentDetail; c: I
 }
 
 /* ---------------------------------------------------------------- Protocolo de violencia */
+const loadSuggestions = () => api.caseSuggestions()
+
 function ViolenceCard({ incident, c, onSaved }: { incident: IncidentDetail; c: IncidentCase; onSaved: () => void }) {
+  const suggestions = useAsync(loadSuggestions)
   const initial = {
     violenceType: (c.violenceType ?? '') as ViolenceType | '',
     violenceModality: (c.violenceModality ?? '') as ViolenceModality | '',
@@ -235,10 +241,42 @@ function ViolenceCard({ incident, c, onSaved }: { incident: IncidentDetail; c: I
               ))}
             </Select>
           </Field>
-          <Field hint="Código que asigna el SíseVe al registrar el caso." id="case-siseveCode" label="Código SíseVe">
+          <Field
+            addon={
+              <a
+                className={buttonClass('secondary', 'md', 'shrink-0')}
+                href={SISEVE_URL}
+                rel="noopener noreferrer"
+                target="_blank"
+                title="Abre el portal del SíseVe (MINEDU) en una pestaña nueva"
+              >
+                <ExternalLink aria-hidden="true" className="size-4" />
+                Ir al SíseVe
+                <span className="sr-only"> (abre en una pestaña nueva)</span>
+              </a>
+            }
+            hint="Registra el caso en el SíseVe y copia aquí el código que te asigna."
+            id="case-siseveCode"
+            label="Código SíseVe"
+          >
             <Input disabled={!c.canManage} maxLength={40} onChange={(e) => setValues((v) => ({ ...v, siseveCode: e.target.value }))} value={values.siseveCode} />
           </Field>
-          <Field hint="Folio del Libro de Registro de Incidencias (Ley 29719)." id="case-bookFolio" label="Folio del Libro de Registro">
+          <Field
+            addon={
+              c.canManage && !values.bookFolio && suggestions.data ? (
+                <Button
+                  className="shrink-0"
+                  onClick={() => setValues((v) => ({ ...v, bookFolio: formatFolio(suggestions.data!.nextFolio) }))}
+                  variant="secondary"
+                >
+                  Usar el {formatFolio(suggestions.data.nextFolio)}
+                </Button>
+              ) : undefined
+            }
+            hint="Página del Libro de Registro de Incidencias (Ley 29719) donde se anotó el caso. El sistema propone la siguiente según los folios ya registrados."
+            id="case-bookFolio"
+            label="Folio del Libro de Registro"
+          >
             <Input disabled={!c.canManage} maxLength={40} onChange={(e) => setValues((v) => ({ ...v, bookFolio: e.target.value }))} value={values.bookFolio} />
           </Field>
         </div>

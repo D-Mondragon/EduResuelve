@@ -1,6 +1,8 @@
 import { Save, Trash2 } from 'lucide-react'
 import { useState, type FormEvent, type ReactNode } from 'react'
+import { useAsync } from '../../hooks/useAsync'
 import { api, ApiError } from '../../lib/api'
+import { formatOficio } from '../../lib/caseDocs'
 import { todayInLima } from '../../lib/format'
 import { isValidDni } from '../../lib/validation'
 import {
@@ -449,8 +451,15 @@ export function MeetingDialog({ incident, onClose, onSaved, meeting }: DialogPro
 }
 
 /* ---------------------------------------------------------------- Derivaciones */
+const loadSuggestions = () => api.caseSuggestions()
+
 export function ReferralDialog({ incident, onClose, onSaved }: DialogProps) {
   const [values, setValues] = useState({ entity: '' as ReferralEntity | '', officeNumber: '', referralDate: todayInLima(), notes: '' })
+  // Número de oficio propuesto (siguiente correlativo del año); se usa mientras no se escriba otro
+  const suggestions = useAsync(loadSuggestions)
+  const [touchedOffice, setTouchedOffice] = useState(false)
+  const suggestedOffice = suggestions.data ? formatOficio(suggestions.data.nextOficio, suggestions.data.year) : ''
+  const officeNumber = touchedOffice ? values.officeNumber : suggestedOffice
   const [errors, setErrors] = useState<Errors>({})
   const { saving, error, run } = useSave(onSaved, onClose)
   const set = <K extends keyof typeof values>(key: K, value: (typeof values)[K]) => {
@@ -461,7 +470,7 @@ export function ReferralDialog({ incident, onClose, onSaved }: DialogProps) {
   function submit() {
     const next: Errors = {
       entity: values.entity ? undefined : 'Selecciona la institución.',
-      officeNumber: values.officeNumber.trim() ? undefined : 'Ingresa el número de oficio.',
+      officeNumber: officeNumber.trim() ? undefined : 'Ingresa el número de oficio.',
       referralDate:
         !values.referralDate || values.referralDate > todayInLima() || values.referralDate < incident.incidentDate
           ? 'La fecha debe estar entre la fecha del hecho y hoy.'
@@ -469,7 +478,7 @@ export function ReferralDialog({ incident, onClose, onSaved }: DialogProps) {
     }
     setErrors(next)
     if (hasErrors(next)) return focusFirst('referral', next)
-    void run(() => api.caseSave(incident.code, 'referral', values), 'Derivación registrada.')
+    void run(() => api.caseSave(incident.code, 'referral', { ...values, officeNumber }), 'Derivación registrada.')
   }
 
   return (
@@ -495,8 +504,25 @@ export function ReferralDialog({ incident, onClose, onSaved }: DialogProps) {
           <Input max={todayInLima()} min={incident.incidentDate} onChange={(e) => set('referralDate', e.target.value)} type="date" value={values.referralDate} />
         </Field>
       </div>
-      <Field error={errors.officeNumber} hint="Ej.: Oficio N.° 015-2026-IE/D" id="referral-officeNumber" label="Número de oficio" required>
-        <Input maxLength={60} onChange={(e) => set('officeNumber', e.target.value)} value={values.officeNumber} />
+      <Field
+        error={errors.officeNumber}
+        hint={
+          !touchedOffice && suggestedOffice
+            ? 'Siguiente correlativo del año, propuesto por el sistema. Corrígelo si la Dirección usó otro número.'
+            : 'Formato: Oficio N.° correlativo-año-siglas (por ejemplo, Oficio N.° 015-2026-IE/D).'
+        }
+        id="referral-officeNumber"
+        label="Número de oficio"
+        required
+      >
+        <Input
+          maxLength={60}
+          onChange={(e) => {
+            setTouchedOffice(true)
+            set('officeNumber', e.target.value)
+          }}
+          value={officeNumber}
+        />
       </Field>
       <Field counter={[values.notes.length, 500]} id="referral-notes" label="Notas">
         <Textarea className="min-h-16" maxLength={500} onChange={(e) => set('notes', e.target.value)} value={values.notes} />

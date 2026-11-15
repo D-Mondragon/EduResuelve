@@ -123,3 +123,22 @@ export function splitAgreements(text: string): string[] {
   const parts = lines.length > 1 ? lines : text.split(/(?:^|\s)(?=\d{1,2}[).-]\s)/).map((l) => l.trim()).filter(Boolean)
   return parts.map((part) => part.replace(/^(\d{1,2}[).-]|[-•*])\s+/, '').trim()).filter(Boolean)
 }
+
+/** Portal del SíseVe (MINEDU), donde se reporta todo caso de violencia escolar (R.M. 383-2025-MINEDU). */
+export const SISEVE_URL = 'https://www.siseve.pe/'
+
+/** Siglas de la institución en sus oficios (configurables): Oficio N.° 016-2026-IE/D */
+export function oficioSiglas(): string {
+  const value = (import.meta.env.VITE_OFICIO_SIGLAS as string | undefined)?.trim()
+  return value || 'IE/D'
+}
+
+/** Número de oficio con la convención del Estado: N.° correlativo (3 dígitos)-año-siglas. */
+export function formatOficio(correlative: number, year: number, siglas = oficioSiglas()): string {
+  return `Oficio N.° ${String(correlative).padStart(3, '0')}-${year}-${siglas}`
+}
+
+/** Folio del Libro de Registro de Incidencias con 3 dígitos: 19 → "019". */
+export function formatFolio(folio: number): string {
+  return String(folio).padStart(3, '0')
+}

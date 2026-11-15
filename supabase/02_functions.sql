@@ -2527,6 +2527,28 @@ begin
 end;
 $$;
 
+-- RPC: valores propuestos para el caso (el personal los confirma o corrige):
+--   · siguiente folio del Libro de Registro de Incidencias (último folio numérico + 1)
+--   · siguiente correlativo de oficio del año (convención "N° correlativo-año-siglas")
+create or replace function public.case_suggestions(p_token text) returns jsonb
+language plpgsql security definer set search_path = app, extensions, pg_temp as $$
+declare
+  v_user app.users := app.session_user(p_token);
+  v_year integer := extract(year from now() at time zone 'America/Lima')::int;
+begin
+  if not app.is_staff(v_user) then
+    perform app.forbidden();
+  end if;
+  return jsonb_build_object(
+    'year', v_year,
+    'nextFolio', coalesce((
+      select max(book_folio::int) from app.incidents where book_folio ~ '^[0-9]{1,6}$'), 0) + 1,
+    'nextOficio', coalesce((
+      select max((regexp_match(office_number, '([0-9]{1,6})\s*-\s*' || v_year))[1]::int)
+      from app.case_referrals), 0) + 1);
+end;
+$$;
+
 -- RPC: elimina un registro del caso (con motivo; queda en el historial)
 create or replace function public.case_remove(p_token text, p_code text, p_kind text, p_id bigint, p_reason text) returns jsonb
 language plpgsql security definer set search_path = app, extensions, pg_temp as $$
@@ -2607,7 +2629,7 @@ begin
     'list_users', 'create_user', 'update_user', 'set_user_status', 'reset_user_password',
     'list_audit', 'list_notifications', 'mark_notifications_read',
     'get_acta', 'verify_acta', 'submit_survey', 'log_perf', 'perf_stats', 'quality_stats', 'report_incidents',
-    'register_formal', 'update_case', 'acknowledge_director', 'case_save', 'case_remove'
+    'register_formal', 'update_case', 'acknowledge_director', 'case_save', 'case_remove', 'case_suggestions'
   ] loop
     for r in
       select p.oid::regprocedure as sig
