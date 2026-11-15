@@ -1,7 +1,6 @@
 import { ArrowLeft, ExternalLink, FileDown, ShieldCheck } from 'lucide-react'
 import { lazy, Suspense, useCallback, useEffect, type ReactNode } from 'react'
 import { useParams } from 'react-router'
-import { useAuth } from '../auth/authContext'
 import { Logo } from '../components/Logo'
 import { Button, ButtonLink } from '../components/ui/Button'
 import { Alert, ErrorState, LoadingState } from '../components/ui/Feedback'
@@ -71,13 +70,11 @@ const tableCell = 'border-b border-slate-200 px-2 py-1.5 align-top text-[0.8rem]
 
 function ActaDocument({
   acta,
-  viewer,
   copy,
   familyOf,
   recipient,
 }: {
   acta: Acta
-  viewer: string
   copy: ActaCopy
   familyOf: number | null
   recipient: string | null
@@ -174,7 +171,20 @@ function ActaDocument({
               <li key={item}>{item}</li>
             ))}
           </ul>
+          <div className="mt-2 space-y-0.5 border-t border-slate-200 pt-2">
+            <p>El historial completo de la atención consta en el sistema EduResuelve como registro inmutable.</p>
+            {convivencia && (
+              <p className="font-medium text-slate-800">
+                Este registro no exime de activar los protocolos de atención de la violencia escolar.
+              </p>
+            )}
+          </div>
         </div>
+      )}
+      {!kase && (
+        <p className="mt-2 text-xs text-slate-600">
+          El historial completo de la atención consta en el sistema EduResuelve como registro inmutable.
+        </p>
       )}
 
       <Section number={next()} title="Datos del hecho">
@@ -465,6 +475,8 @@ function ActaDocument({
         </section>
       </div>
 
+      {/* Anexo y verificación van juntos: el recuadro nunca queda solo en una hoja */}
+      <div className="acta-final">
       {/* Anexo: los archivos respaldan lo actuado; no forman parte del cuerpo firmado */}
       <Section number="A" title="Anexo · Relación de evidencias">
         {c.evidences.length === 0 ? (
@@ -508,51 +520,30 @@ function ActaDocument({
         )}
       </Section>
 
-      {/* Pie de verificación */}
-      <footer className="mt-8 flex break-inside-avoid flex-col-reverse gap-3 rounded-md border border-slate-300 p-3 text-xs leading-5 text-slate-600 sm:flex-row sm:items-start print:flex-row print:items-start">
+      {/* Pie de verificación: enlace completo en una línea y QR */}
+      <footer className="mt-6 flex break-inside-avoid items-center gap-4 rounded-md border border-slate-300 px-4 py-3 text-xs leading-5 text-slate-600">
         <div className="min-w-0 flex-1">
-          <p className="flex flex-wrap items-center gap-x-1.5 font-semibold text-slate-800">
-            <ShieldCheck aria-hidden="true" className="size-4 text-emerald-700" />
-            Código de verificación: <span className="font-mono text-sm tracking-wider text-slate-900">{code}</span>
+          <p className="flex items-center gap-1.5 font-semibold text-slate-800">
+            <ShieldCheck aria-hidden="true" className="size-4 shrink-0 text-emerald-700" />
+            Verificación del documento
           </p>
-          <p className="mt-1">
-            Comprueba la autenticidad de este documento escaneando el código QR o en{' '}
-            <a
-              className="break-all font-medium text-emerald-800 underline underline-offset-2 hover:text-emerald-900 print:text-slate-700 print:no-underline"
-              href={link}
-              rel="noopener"
-              target="_blank"
-            >
-              {/* Texto corto: el QR y el enlace llevan la dirección completa con el código */}
-              {link.replace(/^https?:\/\//, '').replace(/\?.*$/, '')}
-              <span className="sr-only"> (abre en una pestaña nueva)</span>
-            </a>
-            . Huella SHA-256 del contenido: <span className="font-mono">{acta.contentHash.slice(0, 16)}…</span>
-          </p>
+          <p className="mt-0.5">Escanea el código QR o ingresa a:</p>
+          <a
+            className="mt-0.5 block overflow-hidden font-mono text-[10.5px] font-medium whitespace-nowrap text-ellipsis text-emerald-800 underline underline-offset-2 hover:text-emerald-900 print:overflow-visible print:text-[8pt] print:text-slate-800 print:no-underline"
+            href={link}
+            rel="noopener"
+            target="_blank"
+          >
+            {link}
+            <span className="sr-only"> (abre en una pestaña nueva)</span>
+          </a>
           {replaced && (
             <p className="mt-1 font-semibold text-rose-700">
               Esta acta fue reemplazada el {formatDateTime(acta.replacedAt)}. {acta.replacedReason}
             </p>
           )}
-          <p className="mt-1">El historial completo de la atención consta en el sistema EduResuelve como registro inmutable.</p>
-          {convivencia && (
-            <p className="mt-1 font-medium text-slate-700">
-              Este registro no exime de activar los protocolos de atención de la violencia escolar.
-            </p>
-          )}
-          <p className="mt-1">
-            Generado por EduResuelve el {formatDateTime(new Date().toISOString())} a solicitud de {viewer}.
-            {acta.version !== 'Completa' && ' Versión resumida: omite observaciones internas y datos de terceros.'}
-            {copy === 'familia' && ' Copia para la familia: omite observaciones internas y los datos de otros estudiantes.'}
-            {copy === 'terceros' && ' Copia para terceros: estudiantes identificados solo con iniciales y DNI.'}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-3 sm:flex-col sm:gap-1 print:flex-col print:gap-1">
-          <Suspense fallback={<div aria-hidden="true" className="size-24 sm:size-28 print:size-[30mm]" />}>
-            <QrCode className="size-24 sm:size-28 print:size-[30mm]" label={`Código QR para verificar el acta ${code}`} value={link} />
-          </Suspense>
           <a
-            className="inline-flex items-center gap-1 font-medium text-emerald-800 hover:underline print:hidden"
+            className="mt-1 inline-flex items-center gap-1 font-medium text-emerald-800 hover:underline print:hidden"
             href={link}
             rel="noopener"
             target="_blank"
@@ -560,9 +551,12 @@ function ActaDocument({
             <ExternalLink aria-hidden="true" className="size-3.5" />
             Verificar acta
           </a>
-          <span className="hidden text-[10px] text-slate-500 print:block">Escanea para verificar</span>
         </div>
+        <Suspense fallback={<div aria-hidden="true" className="size-20 shrink-0 print:size-[22mm]" />}>
+          <QrCode className="size-20 shrink-0 print:size-[22mm]" label={`Código QR para verificar el acta ${code}`} value={link} />
+        </Suspense>
       </footer>
+      </div>
     </article>
   )
 }
@@ -583,7 +577,6 @@ function DocumentTitle({ title }: { title: string }) {
 
 function ActaPage() {
   const { code = '', number = '' } = useParams()
-  const { user } = useAuth()
   const load = useCallback(() => api.getActa(number), [number])
   const { data: acta, error, loading, reload } = useAsync(load)
   const [search, updateSearch] = useQueryParams()
@@ -700,7 +693,7 @@ function ActaPage() {
       <DocumentTitle
         title={actaFileName(acta.number, copy, candidates.find((p) => p.id === familyOf)?.fullName, recipient)}
       />
-      <ActaDocument acta={acta} copy={copy} familyOf={familyOf} recipient={recipient} viewer={user?.fullName ?? '—'} />
+      <ActaDocument acta={acta} copy={copy} familyOf={familyOf} recipient={recipient} />
     </div>
   )
 }

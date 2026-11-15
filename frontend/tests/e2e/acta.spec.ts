@@ -29,7 +29,8 @@ test.describe('Acta de resolución (RN-011)', () => {
     await expect(page).toHaveTitle('ACT-2026-0004-02')
     await expect(acta).toContainText('Estela Inventada (Orientador)') // cerró
     await expect(acta.getByRole('region', { name: 'Firmas' })).toContainText('Responsable de la atención')
-    await expect(acta).toContainText(/Código de verificación: [0-9A-F]{4}(-[0-9A-F]{4}){3}/)
+    await expect(acta).toContainText(/verificar\?codigo=[0-9A-F]{4}(-[0-9A-F]{4}){3}/)
+    await expect(acta).not.toContainText('SHA-256')
     await expect(page.getByRole('button', { name: 'Descargar PDF' })).toBeVisible()
   })
 
@@ -47,7 +48,7 @@ test.describe('Acta de resolución (RN-011)', () => {
     await login(page, USERS.admin.dni)
     await page.goto('/incidencias/ER-2026-0004/acta/ACT-2026-0004-02')
     const acta = page.getByRole('article')
-    const code = (await acta.getByText(/^[0-9A-F]{4}(-[0-9A-F]{4}){3}$/).first().innerText()).trim()
+    const code = (await acta.textContent())!.match(/codigo=([0-9A-F]{4}(?:-[0-9A-F]{4}){3})/)![1]
     await expect(acta.getByRole('img', { name: `Código QR para verificar el acta ${code}` })).toBeVisible()
     const link = acta.getByRole('link', { name: 'Verificar acta' })
     expect(await link.getAttribute('href')).toMatch(new RegExp(`/verificar[?]codigo=${code}$`))
@@ -86,7 +87,7 @@ test.describe('Acta de resolución (RN-011)', () => {
     await login(page, USERS.admin.dni)
     await page.goto('/incidencias/ER-2026-0004/acta/ACT-2026-0004-02')
     const footer = await page.getByRole('article').textContent()
-    const code = footer!.match(/Código de verificación: ([0-9A-F]{4}(?:-[0-9A-F]{4}){3})/)![1]
+    const code = footer!.match(/codigo=([0-9A-F]{4}(?:-[0-9A-F]{4}){3})/)![1]
     await logout(page)
 
     // Desde el enlace impreso: verifica automáticamente

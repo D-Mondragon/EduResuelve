@@ -115,7 +115,8 @@ body {
   .acta-sheet .acta-section > div {
     margin-top: 2.5mm !important;
   }
-  .acta-sheet .acta-closing {
+  .acta-sheet .acta-closing,
+  .acta-sheet .acta-final {
     break-inside: avoid;
   }
   body,
