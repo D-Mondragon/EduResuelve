@@ -61,8 +61,8 @@ test.describe.serial('Convivencia escolar (D.S. 021-2026-MINEDU)', () => {
     await expect(page.getByRole('button', { name: 'Registrar medida' })).toBeDisabled()
 
     // El SíseVe se abre en su portal oficial; el folio se propone (el siguiente del Libro)
-    // Sin enlaces externos al SíseVe (el dominio siseve.pe sirvió malware)
-    await expect(page.getByRole('link', { name: /SíseVe/ })).toHaveCount(0)
+    // Solo la plataforma oficial del MINEDU (.gob.pe); nunca www.siseve.pe (sirvió malware el 15/11/2026)
+    await expect(page.getByRole('link', { name: /Ir al SíseVe/ })).toHaveAttribute('href', 'https://siseve.minedu.gob.pe/web/')
     await page.getByRole('button', { name: /^Usar el \d{3}$/ }).click()
     await expect(page.getByLabel('Folio del Libro de Registro')).toHaveValue(/^\d{3}$/)
     await page.getByLabel('Código SíseVe').fill('SV-2026-009999')

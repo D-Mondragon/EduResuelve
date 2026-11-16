@@ -139,3 +139,9 @@ export function formatOficio(correlative: number, year: number, siglas = oficioS
 export function formatFolio(folio: number): string {
   return String(folio).padStart(3, '0')
 }
+
+/**
+ * Plataforma oficial del SíseVe (MINEDU, dominio .gob.pe), confirmada por el responsable del proyecto el 15/11/2026.
+ * No usar www.siseve.pe: el 15/11/2026 sirvió una falsa verificación con malware (ataque ClickFix).
+ */
+export const SISEVE_URL = 'https://siseve.minedu.gob.pe/web/'
