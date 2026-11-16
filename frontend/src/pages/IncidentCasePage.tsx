@@ -335,7 +335,7 @@ function IncidentCasePage() {
       {!manage && (
         <Alert tone="info">
           {incident.status === 'Cerrado' || incident.status === 'Descartado'
-            ? `La incidencia está ${incident.status.toLowerCase()}: el caso solo se puede consultar.`
+            ? `La incidencia está ${incident.status === 'Cerrado' ? 'cerrada' : 'descartada'}: el caso solo se puede consultar.`
             : 'Puedes consultar el caso. Lo documenta el personal que lo atiende.'}
         </Alert>
       )}

@@ -13,13 +13,20 @@ const A4_ACTA = 586
 async function expectFitsPrintedPage(page: Page, width: number) {
   await page.setViewportSize({ width, height: 1000 })
   await page.emulateMedia({ media: 'print' })
-  const overflow = await page.evaluate(() => {
-    const limit = document.documentElement.clientWidth + 1
-    const tables = [...document.querySelectorAll('table')]
-      .filter((t) => t.getBoundingClientRect().width > 0)
-      .map((t) => Math.round(t.getBoundingClientRect().right))
-    return { page: document.documentElement.scrollWidth, limit, tablesOutside: tables.filter((r) => r > limit) }
-  })
+  const measure = () =>
+    page.evaluate(() => {
+      const limit = document.documentElement.clientWidth + 1
+      const tables = [...document.querySelectorAll('table')]
+        .filter((t) => t.getBoundingClientRect().width > 0)
+        .map((t) => Math.round(t.getBoundingClientRect().right))
+      return { page: document.documentElement.scrollWidth, limit, tablesOutside: tables.filter((r) => r > limit) }
+    })
+  // Se espera a que el navegador termine de reacomodar la página tras pasar a modo impresión (Firefox tarda más)
+  await expect.poll(async () => {
+    const o = await measure()
+    return o.tablesOutside.length === 0 && o.page <= o.limit
+  }).toBe(true)
+  const overflow = await measure()
   expect(overflow.tablesOutside, `tablas fuera de la hoja (límite ${overflow.limit}px)`).toEqual([])
   expect(overflow.page).toBeLessThanOrEqual(overflow.limit)
   await page.emulateMedia({ media: 'screen' })
@@ -62,7 +69,7 @@ test.describe('Impresión de reportes (PDF)', () => {
     await expectFitsPrintedPage(page, A4_ACTA)
   })
 
-  test('E2E-PRINT-05: el acta usa texto justificado y una hoja A4 con márgenes de documento formal', async ({ page }) => {
+  test('E2E-PRINT-05: el acta usa texto justificado y una hoja A4 con márgenes de documento formal', async ({ page, browserName }) => {
     await login(page, USERS.admin.dni)
     await page.goto('/incidencias/ER-2026-0004/acta/ACT-2026-0004-02')
     const acta = page.getByRole('article')
@@ -89,6 +96,9 @@ test.describe('Impresión de reportes (PDF)', () => {
     })
     expect(rule?.toLowerCase()).toContain('size: a4')
     expect(rule).toContain('margin: 25mm 25mm 25mm 30mm')
-    expect(rule).toContain('counter(pages)')
+    // "Página X de Y" usa los márgenes de página de CSS (@bottom-right), que solo implementan Chrome y Edge.
+    // Limitación conocida y documentada: en Firefox y Safari el acta se imprime sin numeración de páginas.
+    if (browserName === 'chromium') expect(rule).toContain('counter(pages)')
+    else test.info().annotations.push({ type: 'limitación', description: `${browserName}: sin numeración de páginas al imprimir` })
   })
 })

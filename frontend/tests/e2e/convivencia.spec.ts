@@ -52,7 +52,7 @@ test.describe.serial('Convivencia escolar (D.S. 021-2026-MINEDU)', () => {
     await dialog.getByLabel('Rol en el hecho').selectOption('Estudiante afectado')
     await dialog.getByLabel('Nombres y apellidos').fill('Lucía Ejemplo Dos')
     await dialog.getByRole('button', { name: 'Guardar' }).click()
-    await expect(page.getByText('Persona agregada al caso.')).toBeVisible()
+    await expect(page.getByText('Persona agregada al caso.').last()).toBeVisible()
 
     // Falta grave: se comunica a Dirección; la orientadora no puede decidir la medida
     await page.getByLabel('Gravedad').selectOption('Grave')

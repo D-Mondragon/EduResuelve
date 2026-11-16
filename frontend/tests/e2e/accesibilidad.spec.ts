@@ -35,6 +35,7 @@ const adminPages: Array<[string, string]> = [
   ['Detalle de incidencia', '/incidencias/ER-2026-0004'],
   ['Registrar incidencia', '/incidencias/nueva'],
   ['Seguimiento', '/incidencias/ER-2026-0001/seguimiento'],
+  ['Convivencia', '/incidencias/ER-2026-0001/convivencia'],
   ['Evidencias', '/incidencias/ER-2026-0003/evidencias'],
   ['Resolución', '/incidencias/ER-2026-0003/resolucion'],
   ['Cierre', '/incidencias/ER-2026-0005/cierre'],

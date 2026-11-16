@@ -195,7 +195,7 @@ function IncidentFollowUpPage() {
             {available.length === 0 ? (
               <Alert tone="info" title="Sin acciones disponibles">
                 {incident.status === 'Cerrado' || incident.status === 'Descartado'
-                  ? `La incidencia está ${incident.status.toLowerCase()}.`
+                  ? `La incidencia está ${incident.status === 'Cerrado' ? 'cerrada' : 'descartada'}.`
                   : 'Con tu rol no puedes cambiar el estado de esta incidencia en este momento.'}{' '}
                 Puedes consultar el historial completo a la derecha.
               </Alert>

@@ -160,6 +160,7 @@ test.describe.serial('Flujo completo de una incidencia', () => {
     // Independiente de los datos que hayan cambiado otras pruebas: toda fila visible debe estar Resuelta
     const statuses = page.getByRole('table', { name: 'Listado de incidencias' }).locator('tbody tr td:nth-child(4)')
     await expect(statuses.first()).toBeVisible()
-    for (const text of await statuses.allInnerTexts()) expect(text).toContain('Resuelto')
+    // Espera a que la tabla se redibuje con el filtro (en Safari tarda unos milisegundos más que el cambio de URL)
+    await expect.poll(async () => (await statuses.allInnerTexts()).every((text) => text.includes('Resuelto'))).toBe(true)
   })
 })

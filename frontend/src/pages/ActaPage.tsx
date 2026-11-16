@@ -686,7 +686,7 @@ function ActaPage() {
 
         <p className="text-sm text-muted">
           Para guardarla, pulsa <strong>Descargar PDF</strong>, elige <strong>“Guardar como PDF”</strong> en el destino y, en{' '}
-          <strong>Más opciones</strong>, desmarca <strong>“Encabezados y pies de página”</strong> (el acta ya trae su numeración).
+          <strong>Más opciones</strong>, desmarca <strong>“Encabezados y pies de página”</strong> (el acta ya trae su numeración). Usa Chrome o Edge: Firefox y Safari no imprimen la numeración de páginas.
         </p>
       </div>
 
