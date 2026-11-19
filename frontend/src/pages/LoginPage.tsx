@@ -58,7 +58,7 @@ function LoginPage() {
       <div className="flex flex-1 items-center justify-center px-4 pb-12">
         <div className="w-full max-w-md">
           <div className="mb-8 flex flex-col items-center text-center">
-            <Logo className="[&>span]:text-2xl [&>svg]:size-11" />
+            <Logo className="[&>span]:text-2xl [&>img]:size-16" />
             <p className="mt-3 max-w-sm text-sm leading-6 text-muted">
               Gestión, seguimiento y resolución de incidencias educativas
             </p>
