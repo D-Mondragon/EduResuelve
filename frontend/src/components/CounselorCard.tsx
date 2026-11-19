@@ -4,6 +4,12 @@ import { HELP_LINES, pickCounselorMessage, type CounselorAudience } from '../lib
 
 const LAST_KEY = 'eduresuelve.consejo'
 
+/* Dimensiones reales de cada imagen (alto 280 px) para reservar su espacio */
+const IMAGES = {
+  consejero: { src: '/consejero.webp', width: 196 },
+  empatico: { src: '/consejero-empatico.webp', width: 234 },
+} as const
+
 function lastShown(): string | undefined {
   try {
     return localStorage.getItem(LAST_KEY) ?? undefined
@@ -15,7 +21,7 @@ function lastShown(): string | undefined {
 /* Mascota consejera que "habla" en una burbuja de diálogo con un mensaje del mes. */
 export function CounselorCard({ audience }: { audience: CounselorAudience }) {
   // Al azar en cada visita, sin repetir el último mensaje mostrado
-  const [{ tag, message }] = useState(() => pickCounselorMessage(audience, new Date(), Math.random, lastShown()))
+  const [{ tag, message, mood }] = useState(() => pickCounselorMessage(audience, new Date(), Math.random, lastShown()))
   const help = message.help && HELP_LINES[message.help][audience]
 
   useEffect(() => {
@@ -33,8 +39,8 @@ export function CounselorCard({ audience }: { audience: CounselorAudience }) {
         aria-hidden="true"
         className="h-28 w-auto shrink-0 sm:h-40"
         height={280}
-        src="/consejero.webp"
-        width={196}
+        src={IMAGES[mood].src}
+        width={IMAGES[mood].width}
       />
       <figure className="relative mt-4 min-w-0 flex-1 rounded-2xl border border-orange-200 bg-surface p-4 shadow-sm sm:mt-8 sm:p-5 dark:border-orange-400/30">
         {/* Cola de la burbuja, apuntando a la boca del zorrito */}

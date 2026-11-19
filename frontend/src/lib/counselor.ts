@@ -187,12 +187,20 @@ export function pickCounselorMessage(
   date: Date = new Date(),
   random: () => number = Math.random,
   avoid?: string,
-): { tag: string; message: CounselorMessage } {
+): { tag: string; message: CounselorMessage; mood: CounselorMood } {
   const theme = MONTH_THEMES[date.getMonth()]
   const all = theme[audience]
   const pool = all.length > 1 && avoid ? all.filter((m) => m.text !== avoid) : all
   const index = Math.min(pool.length - 1, Math.floor(random() * pool.length))
-  return { tag: theme.tag, message: pool[index] }
+  const message = pool[index]
+  return { tag: theme.tag, message, mood: counselorMood(date, message) }
+}
+
+/** Setiembre (prevención del suicidio), octubre (salud mental) y todo mensaje de salud mental usan la variante empática. */
+export type CounselorMood = 'consejero' | 'empatico'
+
+export function counselorMood(date: Date, message: CounselorMessage): CounselorMood {
+  return [8, 9].includes(date.getMonth()) || message.help === 'salud-mental' ? 'empatico' : 'consejero'
 }
 
 export function isCounselorAudience(role: string): role is CounselorAudience {

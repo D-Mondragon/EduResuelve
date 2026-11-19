@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { HELP_LINES, MONTH_THEMES, isCounselorAudience, pickCounselorMessage } from './counselor'
+import { HELP_LINES, MONTH_THEMES, counselorMood, isCounselorAudience, pickCounselorMessage } from './counselor'
 
 const MONTHS = /enero|febrero|marzo|abril|mayo|junio|julio|agosto|setiembre|septiembre|octubre|noviembre|diciembre/i
 
@@ -45,5 +45,13 @@ describe('Mensajes del consejero', () => {
     expect(isCounselorAudience('Docente')).toBe(true)
     expect(isCounselorAudience('Orientador')).toBe(false)
     expect(isCounselorAudience('Administrador')).toBe(false)
+  })
+
+  it('CP-UI-45: setiembre, octubre y los mensajes de salud mental usan el zorrito empático', () => {
+    expect(pickCounselorMessage('Docente', new Date(2026, 8, 1), () => 0).mood).toBe('empatico')
+    expect(pickCounselorMessage('Docente', new Date(2026, 9, 1), () => 0).mood).toBe('empatico')
+    expect(pickCounselorMessage('Estudiante', new Date(2026, 4, 2), () => 0).mood).toBe('consejero')
+    expect(counselorMood(new Date(2026, 7, 1), { text: 'x', help: 'salud-mental' })).toBe('empatico')
+    expect(counselorMood(new Date(2026, 7, 1), { text: 'x', help: 'violencia' })).toBe('consejero')
   })
 })
