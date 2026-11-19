@@ -1,7 +1,8 @@
 /*
  * Mensajes del consejero (mascota) para la pantalla de inicio de estudiantes y docentes.
- * Cada mes tiene su tema (fechas conmemorativas reales); el mensaje se elige al azar dentro del mes.
- * Los mensajes sobre salud mental siguen las pautas de comunicación segura: sin detalles de
+ * Cada mes tiene un tema (inspirado en sus fechas conmemorativas) y el mensaje se elige al azar
+ * dentro del mes, evitando repetir el último que se mostró.
+ * Los mensajes sobre salud mental siguen las pautas de comunicación responsable: sin detalles de
  * métodos, con mensajes de esperanza y siempre con una vía de ayuda.
  */
 
@@ -9,157 +10,189 @@ export type CounselorAudience = 'Estudiante' | 'Docente'
 export type CounselorHelp = 'salud-mental' | 'violencia'
 
 export interface CounselorMessage {
-  title: string
   text: string
   help?: CounselorHelp
 }
 
 interface MonthTheme {
-  /** Fecha o tema del mes, visible como etiqueta. */
+  /** Tema del mes, visible sobre el mensaje. */
   tag: string
   Estudiante: CounselorMessage[]
   Docente: CounselorMessage[]
 }
 
-export const HELP_LINES: Record<CounselorHelp, string> = {
-  'salud-mental': 'Línea 113, opción 5 (Minsa): orientación en salud mental, gratuita y las 24 horas.',
-  violencia: 'Línea 100 (MIMP): atención gratuita ante violencia, las 24 horas.',
+/*
+ * Líneas de ayuda verificadas en notas oficiales (gob.pe, nov. 2026):
+ * - Línea 113, opción 5 (Minsa): orientación y apoyo psicológico gratuito, las 24 horas.
+ * - Línea 100 (MIMP, Programa Warmi Ñan): gratuita, 24 horas, también atiende a niñas, niños y adolescentes.
+ */
+export const HELP_LINES: Record<CounselorHelp, Record<CounselorAudience, { lead: string; line: string; detail: string }>> = {
+  'salud-mental': {
+    Estudiante: {
+      lead: 'No tienes que pasarlo solo.',
+      line: 'Llama al 113 y marca la opción 5',
+      detail: 'Un psicólogo del Minsa te escuchará, sin costo y a cualquier hora.',
+    },
+    Docente: {
+      lead: 'Puedes orientar al estudiante y a su familia:',
+      line: 'Línea 113, opción 5 (Minsa)',
+      detail: 'Psicólogos que escuchan y orientan, sin costo y las 24 horas.',
+    },
+  },
+  violencia: {
+    Estudiante: {
+      lead: 'Si tú o alguien que conoces corre peligro,',
+      line: 'llama a la Línea 100',
+      detail: 'Te escuchan y te orientan sin costo, de día y de noche.',
+    },
+    Docente: {
+      lead: 'Ante un caso de violencia, también puedes llamar a la',
+      line: 'Línea 100 (MIMP)',
+      detail: 'Orientación gratuita las 24 horas, también para niñas, niños y adolescentes.',
+    },
+  },
 }
 
 export const MONTH_THEMES: MonthTheme[] = [
   {
     tag: 'Vacaciones seguras',
     Estudiante: [
-      { title: 'Cuídate también en redes', text: 'Si alguien te insulta, te amenaza o comparte fotos tuyas sin permiso, no respondas: guarda la captura y cuéntaselo a un adulto de confianza.', help: 'violencia' },
-      { title: 'Nadie debe pedirte secretos', text: 'Si una persona te pide guardar un secreto que te incomoda o te da miedo, eso no está bien. Cuéntalo; no es tu culpa.', help: 'violencia' },
+      { text: '¡Hola! En vacaciones pasamos más tiempo en redes. Si alguien te insulta, te amenaza o comparte fotos tuyas sin permiso, no le respondas: guarda una captura y cuéntaselo a un adulto de confianza. Pedir ayuda no te mete en problemas.', help: 'violencia' },
+      { text: 'Oye, si una persona te pide guardar un secreto que te incomoda o te da miedo, eso no está bien. Tú no tienes la culpa. Cuéntaselo a alguien de tu familia o a tu tutor, ellos pueden protegerte.', help: 'violencia' },
     ],
     Docente: [
-      { title: 'Prepara el retorno', text: 'Los casos de ciberacoso suelen aumentar en vacaciones. Al regreso, pregunta cómo les fue y registra lo que te cuenten.' },
+      { text: 'En vacaciones el ciberacoso suele aumentar, porque los chicos pasan más tiempo conectados. Cuando vuelvan, dedica unos minutos a preguntarles cómo les fue; si alguien te cuenta algo, regístralo para que no se pierda.' },
+      { text: 'Antes del nuevo año escolar, vale la pena revisar los casos que quedaron abiertos. Un seguimiento a tiempo evita que un problema de diciembre se repita en marzo.' },
     ],
   },
   {
-    tag: 'Día de Internet Segura (2.° martes de febrero)',
+    tag: 'Internet segura',
     Estudiante: [
-      { title: 'Lo que publicas se queda', text: 'Antes de compartir algo de otra persona, pregúntate si te gustaría que lo hicieran contigo. Burlarse en grupos también es acoso.' },
-      { title: 'Bloquea, guarda y cuenta', text: 'Si te molestan por internet: bloquea, guarda la evidencia y avisa a tu tutor o a tu familia. Puedes reportarlo aquí.', help: 'violencia' },
+      { text: '¿Sabías que burlarse de alguien en un grupo de chat también es acoso? Antes de compartir una foto o un meme de otra persona, pregúntate si te gustaría que lo hicieran contigo. En internet también se respeta.' },
+      { text: 'Si te molestan por internet, recuerda tres pasos: bloquea, guarda la evidencia y cuéntalo. Tu tutor o tu familia pueden ayudarte, y también puedes reportarlo aquí mismo.', help: 'violencia' },
     ],
     Docente: [
-      { title: 'El ciberacoso también es escolar', text: 'Aunque ocurra fuera del aula, si afecta la convivencia entre estudiantes debe registrarse y atenderse.' },
+      { text: 'Aunque el ciberacoso ocurra fuera del horario escolar, si afecta la convivencia entre estudiantes, el colegio debe atenderlo. Regístralo con las capturas como evidencia: así el caso no depende de la memoria de nadie.' },
     ],
   },
   {
-    tag: 'Inicio del año escolar',
+    tag: 'Un buen inicio de clases',
     Estudiante: [
-      { title: 'Un aula donde todos caben', text: 'Saluda al compañero nuevo, invítalo a tu grupo. Nadie debería pasar el recreo solo.' },
-      { title: 'Si ves algo, dilo', text: 'Si ves que molestan a alguien una y otra vez, no te quedes callado: cuéntaselo a un docente o regístralo en EduResuelve.' },
+      { text: '¡Empezamos un nuevo año! Si ves a un compañero nuevo solo en el recreo, invítalo a tu grupo. Un pequeño gesto puede cambiarle el día a alguien.' },
+      { text: 'Si ves que molestan a alguien una y otra vez, no te quedes callado. Contárselo a un profesor no es "acusar": es ayudar. También puedes reportarlo en EduResuelve.' },
     ],
     Docente: [
-      { title: 'Acuerdos de convivencia', text: 'Construye con tu sección las normas del aula en las primeras semanas: los acuerdos propios se cumplen mejor.' },
-      { title: 'Registra desde el primer caso', text: 'Un hecho aislado hoy puede ser un patrón mañana. El registro temprano permite actuar a tiempo.' },
+      { text: 'Las primeras semanas son ideales para construir con tu sección los acuerdos de convivencia. Cuando los estudiantes participan en crearlos, los respetan mucho más.' },
+      { text: 'Un hecho aislado hoy puede ser un patrón mañana. Registrar desde el primer caso permite ver a tiempo cuándo algo se repite y actuar antes de que crezca.' },
     ],
   },
   {
-    tag: 'Día del Niño Peruano (2.° domingo de abril)',
+    tag: 'Tus derechos importan',
     Estudiante: [
-      { title: 'Tienes derecho a sentirte seguro', text: 'Nadie puede golpearte, humillarte ni tocarte sin tu permiso, ni en el colegio ni fuera de él. Si te pasa, cuéntalo.', help: 'violencia' },
+      { text: 'Tienes derecho a sentirte seguro. Nadie puede golpearte, humillarte ni tocarte sin tu permiso, ni en el colegio ni fuera de él. Si te pasa algo así, cuéntalo: hay adultos que deben protegerte.', help: 'violencia' },
     ],
     Docente: [
-      { title: 'El buen trato se enseña tratando bien', text: 'Corregir sin gritos ni humillaciones también es parte de proteger los derechos de tus estudiantes.' },
+      { text: 'El buen trato también se enseña con el ejemplo. Corregir sin gritos ni humillaciones es parte de proteger los derechos de tus estudiantes, y les muestra cómo resolver conflictos.' },
     ],
   },
   {
-    tag: 'Día contra el acoso escolar (2 de mayo)',
+    tag: 'No al acoso escolar',
     Estudiante: [
-      { title: 'El bullying no es un juego', text: 'Si se repite, duele y uno no puede defenderse, es acoso. Contarlo no es "acusar": es pedir ayuda.', help: 'violencia' },
-      { title: 'Tú puedes ser la diferencia', text: 'Quien mira y se ríe también hace daño. Acompaña a quien lo pasa mal y avisa a un adulto.' },
+      { text: 'El bullying no es un juego. Si se repite, duele y uno no puede defenderse, es acoso. Contarlo no es ser "soplón": es pedir ayuda para ti o para un compañero.', help: 'violencia' },
+      { text: '¿Sabías que quien mira y se ríe también hace daño? Puedes ser la diferencia: acompaña a quien lo está pasando mal y avisa a un profesor o reporta lo que viste.' },
     ],
     Docente: [
-      { title: 'Señales que no hay que pasar por alto', text: 'Aislamiento, ausencias frecuentes, útiles dañados o miedo a ir al colegio pueden indicar acoso. Regístralo y comunícalo.' },
-      { title: 'Actúa dentro de las 24 horas', text: 'Ante un caso de violencia escolar, registra el hecho y comunícalo a Dirección sin demora; el sistema te guía en el protocolo.' },
+      { text: 'Aislamiento, faltas frecuentes, útiles dañados o miedo a venir al colegio pueden ser señales de acoso. Si notas algo, conversa con el estudiante y registra lo que observes.' },
+      { text: 'Ante un hecho de violencia escolar, regístralo y comunícalo a Dirección sin demora. El sistema te va guiando en cada paso del protocolo.' },
     ],
   },
   {
-    tag: 'Día mundial contra el trabajo infantil (12 de junio)',
+    tag: 'Estudiar es un derecho',
     Estudiante: [
-      { title: 'Estudiar es tu derecho', text: 'Si por trabajar o cuidar a otros no puedes estudiar o descansar, habla con tu tutor: hay maneras de ayudarte.' },
+      { text: 'Si por trabajar o cuidar a otras personas no puedes estudiar o descansar, conversa con tu tutor. No es tu culpa y hay maneras de ayudarte a seguir aprendiendo.' },
     ],
     Docente: [
-      { title: 'Las inasistencias cuentan una historia', text: 'El cansancio o las faltas frecuentes pueden deberse a trabajo infantil o a problemas en casa. Pregunta con cuidado y registra.' },
+      { text: 'El cansancio constante o las faltas frecuentes a veces esconden trabajo infantil o problemas en casa. Pregunta con cuidado, sin juzgar, y registra lo que conozcas para darle seguimiento.' },
     ],
   },
   {
-    tag: 'Fiestas Patrias',
+    tag: 'Un Perú sin discriminación',
     Estudiante: [
-      { title: 'Un Perú sin burlas', text: 'Nadie debe ser molestado por su forma de hablar, su origen, su piel o su cuerpo. Respetar también es querer al país.' },
+      { text: 'Nadie debe ser molestado por su forma de hablar, su origen, su piel o su cuerpo. Nuestro país es diverso y eso es lo que lo hace grande. Respetar a todos también es querer al Perú.' },
     ],
     Docente: [
-      { title: 'La discriminación también es violencia', text: 'Los apodos por origen, lengua o apariencia son una forma de violencia escolar y deben atenderse como tal.' },
+      { text: 'Los apodos por origen, lengua o apariencia no son bromas inocentes: son una forma de violencia escolar. Atiéndelos como tal y regístralos para hacerles seguimiento.' },
     ],
   },
   {
-    tag: 'Día internacional de la juventud (12 de agosto)',
+    tag: 'Tu voz importa',
     Estudiante: [
-      { title: 'Tu voz importa', text: 'Si algo en el colegio no está bien, tienes derecho a decirlo y a que te escuchen. Puedes registrarlo aquí.' },
-      { title: 'Pedir ayuda es de valientes', text: 'Si algo te preocupa o te pone triste, conversa con tu tutor o con el psicólogo del colegio.', help: 'salud-mental' },
+      { text: 'Si algo en el colegio no está bien, tienes derecho a decirlo y a que te escuchen. Puedes contárselo a tu tutor o registrarlo aquí; tu reporte se atiende con reserva.' },
+      { text: 'Pedir ayuda es de valientes. Si algo te preocupa o te pone triste, busca a tu tutor, al psicólogo del colegio o a alguien de tu familia. Hablarlo ya es un gran paso.', help: 'salud-mental' },
     ],
     Docente: [
-      { title: 'Escuchar es intervenir', text: 'Cuando un estudiante se anima a contar algo, agradécele, créele y registra el hecho sin juzgar.' },
+      { text: 'Cuando un estudiante se anima a contarte algo, agradécele, créele y registra el hecho sin juzgar. Que se sienta escuchado hace que vuelva a confiar en ti.' },
     ],
   },
   {
-    tag: 'Mes de la prevención del suicidio (10 de setiembre)',
+    tag: 'Prevención del suicidio: hablar ayuda',
     Estudiante: [
-      { title: 'No estás solo', text: 'Si sientes que todo es demasiado o que no puedes más, habla hoy con alguien de confianza. Hay personas preparadas para escucharte.', help: 'salud-mental' },
-      { title: 'Cuida a tus amigos', text: 'Si un amigo dice que quiere desaparecer o que nada vale la pena, tómalo en serio y cuéntaselo a un adulto, aunque te pida no hacerlo.', help: 'salud-mental' },
+      { text: 'Hola, quiero que sepas algo: si a veces sientes que todo es demasiado o que ya no puedes más, no estás solo. Hablar con alguien de confianza hoy mismo puede hacer la diferencia. Lo que sientes importa.', help: 'salud-mental' },
+      { text: 'Si un amigo dice que quiere desaparecer o que nada vale la pena, tómalo en serio. Escúchalo sin juzgar y cuéntaselo a un adulto, aunque te pida que no lo hagas: así lo estás cuidando.', help: 'salud-mental' },
     ],
     Docente: [
-      { title: 'Preguntar no hace daño', text: 'Si notas aislamiento, cambios bruscos o frases de desesperanza, pregunta con calma cómo se siente y deriva al servicio de psicología.', help: 'salud-mental' },
-      { title: 'Nunca lo dejes solo', text: 'Ante un riesgo, acompaña al estudiante, avisa a Dirección y a la familia, y registra la atención en el sistema.', help: 'salud-mental' },
+      { text: 'Si notas aislamiento, cambios bruscos de ánimo o frases de desesperanza, pregúntale con calma cómo se siente. Preguntar no pone ideas en su cabeza; al contrario, le muestra que alguien se preocupa.', help: 'salud-mental' },
+      { text: 'Ante una señal de riesgo, no dejes solo al estudiante. Acompáñalo, avisa a Dirección y a su familia, y deriva al servicio de psicología. Luego registra la atención para darle seguimiento.', help: 'salud-mental' },
     ],
   },
   {
-    tag: 'Día mundial de la salud mental (10 de octubre)',
+    tag: 'Cuidemos la salud mental',
     Estudiante: [
-      { title: 'Sentirte mal no te hace débil', text: 'La tristeza, la ansiedad o el estrés se pueden conversar. Busca a tu tutor, al psicólogo o a tu familia.', help: 'salud-mental' },
-      { title: 'Respira y pide apoyo', text: 'En épocas de exámenes es normal preocuparse. Si la preocupación no te deja dormir o comer, cuéntalo.', help: 'salud-mental' },
+      { text: 'Sentirte triste, ansioso o estresado no te hace débil. Le pasa a mucha gente y se puede conversar. Busca a tu tutor, al psicólogo del colegio o a tu familia.', help: 'salud-mental' },
+      { text: 'En época de exámenes es normal preocuparse. Pero si la preocupación no te deja dormir ni comer, es momento de contarlo. Descansar también es parte de estudiar.', help: 'salud-mental' },
     ],
     Docente: [
-      { title: 'Cuídate para cuidar', text: 'Tu bienestar también importa. Comparte la carga de los casos difíciles con el equipo de convivencia.' },
-      { title: 'Detecta a tiempo', text: 'El bajo rendimiento repentino puede tener causas emocionales. Conversa antes de sancionar.', help: 'salud-mental' },
+      { text: 'Tu bienestar también importa. Los casos difíciles pesan, así que compártelos con el equipo de convivencia: nadie debería cargarlos solo.' },
+      { text: 'Una baja repentina en el rendimiento puede tener causas emocionales. Antes de sancionar, conversa con el estudiante: a veces lo que necesita es ser escuchado.', help: 'salud-mental' },
     ],
   },
   {
-    tag: 'Noviembre: por una escuela sin violencia',
+    tag: 'Por una escuela sin violencia',
     Estudiante: [
-      { title: 'Reportar protege (1.er jueves de noviembre)', text: 'Es el Día internacional contra la violencia y el acoso en la escuela. Si sufres o ves acoso, maltrato o cualquier abuso, repórtalo. Tu reporte se atiende con reserva.', help: 'violencia' },
-      { title: 'Tus derechos (20 de noviembre)', text: 'Tienes derecho a aprender sin miedo. Si algo te hace daño, en el colegio hay adultos que deben protegerte.', help: 'violencia' },
+      { text: 'Si sufres o ves acoso, maltrato o cualquier tipo de abuso, repórtalo. Tu reporte lo atienden con reserva las personas encargadas de la convivencia en tu colegio, y su trabajo es protegerte.', help: 'violencia' },
+      { text: 'Tienes derecho a aprender sin miedo. Si algo o alguien te hace daño, en el colegio hay adultos cuya tarea es protegerte. Cuéntaselo a uno de ellos.', help: 'violencia' },
     ],
     Docente: [
-      { title: 'Día contra el acoso en la escuela (1.er jueves)', text: 'Empujones, burlas o exclusión repetida no son "cosas de chicos". Regístralos y activa el protocolo.' },
-      { title: 'Violencia de género (25 de noviembre)', text: 'El acoso sexual, los comentarios sobre el cuerpo y el control en parejas adolescentes también deben registrarse.', help: 'violencia' },
+      { text: 'Empujones, burlas o dejar a alguien de lado una y otra vez no son "cosas de chicos". Son formas de violencia que deben registrarse y atenderse con el protocolo.' },
+      { text: 'El acoso sexual, los comentarios sobre el cuerpo o el control en parejas adolescentes también son violencia. Si llegas a conocer un caso, regístralo y comunícalo a Dirección.', help: 'violencia' },
     ],
   },
   {
-    tag: 'Día de los Derechos Humanos (10 de diciembre)',
+    tag: 'Cerramos el año en paz',
     Estudiante: [
-      { title: 'Cierra el año en paz', text: 'Si este año alguien te hizo daño y no lo contaste, todavía puedes hacerlo. Nunca es tarde para pedir ayuda.', help: 'violencia' },
+      { text: 'Si este año alguien te hizo daño y no lo contaste, todavía puedes hacerlo. Nunca es tarde para pedir ayuda, y las vacaciones son un buen momento para empezar tranquilo.', help: 'violencia' },
     ],
     Docente: [
-      { title: 'Cierra los casos pendientes', text: 'Antes de vacaciones, revisa tus incidencias abiertas y deja registrado el seguimiento acordado con las familias.' },
+      { text: 'Antes de vacaciones, revisa tus incidencias abiertas y deja registrado el seguimiento acordado con las familias. Así, quien retome el caso en marzo sabrá exactamente dónde quedó.' },
     ],
   },
 ]
 
-/** Elige un mensaje del mes para el rol. `random` debe devolver un valor en [0, 1). */
+/**
+ * Elige al azar un mensaje del mes para el rol. Si se indica `avoid` (el último mostrado) y hay
+ * más de uno, no lo repite. `random` debe devolver un valor en [0, 1).
+ */
 export function pickCounselorMessage(
   audience: CounselorAudience,
   date: Date = new Date(),
   random: () => number = Math.random,
-): { tag: string; message: CounselorMessage; index: number } {
+  avoid?: string,
+): { tag: string; message: CounselorMessage } {
   const theme = MONTH_THEMES[date.getMonth()]
-  const pool = theme[audience]
+  const all = theme[audience]
+  const pool = all.length > 1 && avoid ? all.filter((m) => m.text !== avoid) : all
   const index = Math.min(pool.length - 1, Math.floor(random() * pool.length))
-  return { tag: theme.tag, message: pool[index], index }
+  return { tag: theme.tag, message: pool[index] }
 }
 
 export function isCounselorAudience(role: string): role is CounselorAudience {
