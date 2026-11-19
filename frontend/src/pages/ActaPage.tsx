@@ -1,7 +1,6 @@
 import { ArrowLeft, ExternalLink, FileDown, ShieldCheck } from 'lucide-react'
 import { lazy, Suspense, useCallback, useEffect, type ReactNode } from 'react'
 import { useParams } from 'react-router'
-import { Logo } from '../components/Logo'
 import { Button, ButtonLink } from '../components/ui/Button'
 import { Alert, ErrorState, LoadingState } from '../components/ui/Feedback'
 import { Field as FormField, Select } from '../components/ui/Field'
@@ -119,7 +118,7 @@ function ActaDocument({
       {/* Encabezado */}
       <header className="flex flex-col gap-4 border-b border-slate-300 pb-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-center gap-3">
-          <Logo showText={false} />
+          {/* Documento oficial: sin la mascota del sistema */}
           <div>
             <p className="text-base font-bold leading-tight text-slate-900">{institutionName()}</p>
             <p className="text-xs text-slate-600">Sistema de gestión de incidencias EduResuelve</p>

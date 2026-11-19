@@ -18,11 +18,13 @@ import {
 import { useCallback } from 'react'
 import { Link } from 'react-router'
 import { useCurrentUser } from '../auth/authContext'
+import { CounselorCard } from '../components/CounselorCard'
 import { PriorityBadge, StatusBadge } from '../components/ui/Badge'
 import { ButtonLink } from '../components/ui/Button'
 import { Card, CardHeader, EmptyState, ErrorState, LoadingState, PageHeader, StatCard } from '../components/ui/Feedback'
 import { useAsync } from '../hooks/useAsync'
 import { api } from '../lib/api'
+import { isCounselorAudience } from '../lib/counselor'
 import { formatRelative } from '../lib/format'
 import { isManager } from '../lib/permissions'
 import { priorityBar, statusBar } from '../lib/ui'
@@ -391,6 +393,7 @@ function DashboardPage() {
         icon={LayoutDashboard}
         title={`${greeting()}, ${user.nombres}`}
       />
+      {isCounselorAudience(user.role) && <CounselorCard audience={user.role} />}
       {loading && !data ? (
         <LoadingState />
       ) : error && !data ? (
