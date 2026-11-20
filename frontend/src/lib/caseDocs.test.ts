@@ -49,7 +49,11 @@ describe('Versiones del acta y datos de estudiantes (D.S. 021-2026-MINEDU; R.M. 
     const own = showParticipant(kase.participants[0], 'familia', 1)
     const other = showParticipant(kase.participants[1], 'familia', 1)
     expect(own).toMatchObject({ name: 'Mateo Prueba Uno', dni: '71****67', own: true })
-    expect(other).toMatchObject({ name: 'L. E. D.', dni: '', statement: null, own: false })
+    expect(other).toMatchObject({ name: 'L. E. D.', dni: 'Reservado', statement: null, own: false })
+    // La familia de la estudiante afectada (sin DNI registrado) ve "No registrado", no un guion
+    expect(showParticipant(kase.participants[1], 'familia', 2)).toMatchObject({ name: 'lucía ejemplo dos', dni: 'No registrado', own: true })
+    expect(showParticipant(kase.participants[0], 'familia', 2)).toMatchObject({ name: 'M. P. U.', dni: 'Reservado' })
+    expect(showParticipant(kase.participants[1], 'terceros', null)).toMatchObject({ dni: 'No registrado' })
     expect(visibleMeasures(kase, 'familia', 1).map((m) => m.participantId)).toEqual([1])
     expect(visibleMeasures(kase, 'completa', null)).toHaveLength(2)
   })

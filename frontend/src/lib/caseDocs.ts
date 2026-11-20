@@ -48,7 +48,8 @@ export function showParticipant(p: ActaCaseParticipant, copy: ActaCopy, familyOf
     id: p.id,
     role: p.role,
     name: full ? p.fullName : nameInitials(p.fullName),
-    dni: copy === 'terceros' ? (p.dni ?? '') : full ? maskDni(p.dni) : '',
+    // Sin DNI en el caso: se dice explícitamente; DNI de otro estudiante en la copia para la familia: reservado
+    dni: copy === 'familia' && !own ? 'Reservado' : !p.dni ? 'No registrado' : copy === 'terceros' ? p.dni : maskDni(p.dni),
     gradeSection: p.gradeSection,
     statement:
       copy === 'familia' && !own
