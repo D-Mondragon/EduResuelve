@@ -15,16 +15,14 @@ import {
   UserCheck,
   type LucideIcon,
 } from 'lucide-react'
-import { useCallback } from 'react'
+import { lazy, Suspense, useCallback } from 'react'
 import { Link } from 'react-router'
 import { useCurrentUser } from '../auth/authContext'
-import { CounselorCard } from '../components/CounselorCard'
 import { PriorityBadge, StatusBadge } from '../components/ui/Badge'
 import { ButtonLink } from '../components/ui/Button'
 import { Card, CardHeader, EmptyState, ErrorState, LoadingState, PageHeader, StatCard } from '../components/ui/Feedback'
 import { useAsync } from '../hooks/useAsync'
 import { api } from '../lib/api'
-import { isCounselorAudience } from '../lib/counselor'
 import { formatRelative } from '../lib/format'
 import { isManager } from '../lib/permissions'
 import { priorityBar, statusBar } from '../lib/ui'
@@ -35,6 +33,9 @@ import {
   type IncidentSummary,
 } from '../types/incident'
 import type { User } from '../types/user'
+
+// Los mensajes del consejero se cargan aparte para no engrosar el paquete inicial
+const CounselorCard = lazy(() => import('../components/CounselorCard').then((m) => ({ default: m.CounselorCard })))
 
 function greeting(now = new Date()) {
   const hour = Number(new Intl.DateTimeFormat('es-PE', { hour: 'numeric', hour12: false, timeZone: 'America/Lima' }).format(now))
@@ -393,7 +394,11 @@ function DashboardPage() {
         icon={LayoutDashboard}
         title={`${greeting()}, ${user.nombres}`}
       />
-      {isCounselorAudience(user.role) && <CounselorCard audience={user.role} />}
+      {(user.role === 'Estudiante' || user.role === 'Docente') && (
+        <Suspense fallback={null}>
+          <CounselorCard audience={user.role} />
+        </Suspense>
+      )}
       {loading && !data ? (
         <LoadingState />
       ) : error && !data ? (
