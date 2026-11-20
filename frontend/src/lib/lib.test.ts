@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { IncidentAction, IncidentSummary } from '../types/incident'
+import { categoryHelp, incidentCategories, type IncidentAction, type IncidentSummary } from '../types/incident'
 import { followUpEvent, formatDuration, institutionName, personLabel, verifyUrl } from './acta'
 import { toCsv } from './csv'
 import { qrPath } from './qr'
@@ -297,5 +297,17 @@ describe('Código QR del acta (RN-011)', () => {
     // Es determinista: la misma acta siempre imprime el mismo código
     expect(qrPath(url).path).toBe(path)
     expect(qrPath(url + 'X').path).not.toBe(path)
+  })
+})
+
+describe('Ayuda para elegir la categoría', () => {
+  it('CP-UI-49: cada categoría explica cuándo usarla, con un ejemplo, y orienta los casos dudosos hacia Convivencia', () => {
+    for (const category of incidentCategories) {
+      expect(categoryHelp[category].length).toBeGreaterThan(30)
+      expect(categoryHelp[category]).toMatch(/Ej\.:/)
+    }
+    expect(categoryHelp.Convivencia).toMatch(/internet/)
+    expect(categoryHelp.Orientación).toMatch(/elige Convivencia/)
+    expect(categoryHelp.Infraestructura).toMatch(/elige Convivencia/)
   })
 })

@@ -13,6 +13,7 @@ import { todayInLima } from '../lib/format'
 import { validateIncidentForm, type IncidentFormErrors as Errors } from '../lib/validation'
 import { can } from '../lib/permissions'
 import {
+  categoryHelp,
   incidentCategories,
   incidentPriorities,
   type IncidentDetail,
@@ -205,7 +206,13 @@ function IncidentFormPage() {
               />
             </Field>
 
-            <Field error={errors.category} id="incident-category" label="Categoría" required>
+            <Field
+              error={errors.category}
+              hint={values.category ? categoryHelp[values.category] : 'Elige de qué trata el problema; al seleccionar verás una ayuda.'}
+              id="incident-category"
+              label="Categoría"
+              required
+            >
               <Select onChange={(e) => update('category', e.target.value as IncidentFormData['category'])} value={values.category}>
                 <option value="">Selecciona una categoría</option>
                 {incidentCategories.map((category) => (

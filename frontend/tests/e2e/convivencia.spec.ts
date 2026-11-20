@@ -11,6 +11,8 @@ test.describe.serial('Convivencia escolar (D.S. 021-2026-MINEDU)', () => {
     await page.getByLabel('Título').fill('Empujones en la fila de ingreso E2E')
     await page.getByLabel('Descripción').fill('Un estudiante empujó a otro en la fila de ingreso; la auxiliar los separó.')
     await page.getByLabel('Categoría').selectOption('Convivencia')
+    // La ayuda de la categoría explica cuándo usarla y queda asociada al campo
+    await expect(page.getByLabel('Categoría')).toHaveAccessibleDescription(/hace daño, molesta, amenaza o excluye/)
     await page.getByLabel('Prioridad').selectOption('Alta')
     await page.getByLabel('Fecha del incidente').fill('2026-10-20')
     await page.getByLabel('Lugar').fill('Puerta principal')

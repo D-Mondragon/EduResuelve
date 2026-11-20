@@ -25,6 +25,18 @@ export const incidentCategories = [
 ] as const
 export type IncidentCategory = (typeof incidentCategories)[number]
 
+/** Ayuda para elegir la categoría al reportar (lenguaje sencillo, pensado también para estudiantes). */
+export const categoryHelp: Record<IncidentCategory, string> = {
+  Convivencia:
+    'Cuando alguien hace daño, molesta, amenaza o excluye a otra persona, en el colegio o por internet. Ej.: insultos, golpes, burlas en redes, discriminación.',
+  Académica: 'Clases, notas, tareas o evaluaciones. Ej.: una nota mal registrada o un examen que no se pudo rendir.',
+  Infraestructura:
+    'El local, los muebles o los equipos. Ej.: una carpeta rota, un baño sin agua o una computadora malograda. Si alguien lo dañó a propósito para hacer daño a otra persona, elige Convivencia.',
+  Orientación:
+    'Cómo se siente un estudiante cuando nadie le está haciendo daño. Ej.: tristeza, ansiedad, problemas en casa o ganas de dejar el colegio. Si se siente así porque lo molestan, elige Convivencia.',
+  Administrativa: 'Trámites y papeles. Ej.: constancias, certificados, matrícula, carné u horarios.',
+}
+
 export const evidenceTypes = ['Documento', 'Imagen', 'Captura de pantalla', 'Informe', 'Otro'] as const
 export type EvidenceType = (typeof evidenceTypes)[number]
 
