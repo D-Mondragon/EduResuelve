@@ -10,7 +10,7 @@ export function ObjectiveGuide() {
     <span className="mt-1 block space-y-0.5">
       <span className="block">• Describe lo que se vio y se oyó, en orden cronológico.</span>
       <span className="block">• Sin calificativos (“agresivo”, “problemático”), diagnósticos ni conclusiones sobre quién es responsable.</span>
-      <span className="block">• Usa “estudiante involucrado” o “estudiante afectado”; no “agresor” ni “víctima”.</span>
+      <span className="block">• Usa “estudiante señalado” o “estudiante afectado”; no “agresor” ni “víctima”.</span>
     </span>
   )
 }

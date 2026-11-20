@@ -24,7 +24,7 @@ import { api } from '../lib/api'
 import { formatBytes, formatDate, formatDateTime } from '../lib/format'
 import { cn } from '../lib/ui'
 import type { Acta } from '../types/acta'
-import { hasDiscipline, hasViolence } from '../types/case'
+import { hasDiscipline, hasViolence, participantRoleLabel } from '../types/case'
 
 // El generador de QR solo se descarga al abrir un acta (no engrosa el resto de la app)
 const QrCode = lazy(() => import('../components/QrCode').then((m) => ({ default: m.QrCode })))
@@ -248,7 +248,7 @@ function ActaDocument({
               <tbody>
                 {people.map((p) => (
                   <tr className="break-inside-avoid" key={p.id}>
-                    <td className={tableCell}>{p.role}</td>
+                    <td className={tableCell}>{participantRoleLabel(p.role)}</td>
                     <td className={cn(tableCell, 'font-medium')}>{p.name}</td>
                     <td className={cn(tableCell, 'font-mono')}>{p.dni || '—'}</td>
                     <td className={tableCell}>{p.gradeSection || '—'}</td>
@@ -273,7 +273,7 @@ function ActaDocument({
             {statements.map((p) => (
               <div className="break-inside-avoid rounded-md border border-slate-200 p-3" key={p.id}>
                 <p className="text-sm font-semibold text-slate-900">
-                  {p.name} <span className="font-normal text-slate-600">· {p.role}</span>
+                  {p.name} <span className="font-normal text-slate-600">· {participantRoleLabel(p.role)}</span>
                 </p>
                 <p className="mt-0.5 text-xs text-slate-600">
                   {p.statement!.statementStatus === 'Registrada'
@@ -657,7 +657,7 @@ function ActaPage() {
                 <Select onChange={(e) => updateSearch((next) => next.set('estudiante', e.target.value))} value={String(familyOf ?? '')}>
                   {candidates.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.fullName} ({p.role.toLowerCase()})
+                      {p.fullName} ({participantRoleLabel(p.role).toLowerCase()})
                     </option>
                   ))}
                 </Select>

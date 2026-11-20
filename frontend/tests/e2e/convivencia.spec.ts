@@ -29,7 +29,7 @@ test.describe.serial('Convivencia escolar (D.S. 021-2026-MINEDU)', () => {
     await expect(page).toHaveURL(new RegExp(`/incidencias/${code}/convivencia$`))
     await expect(page.getByRole('region', { name: 'Registro formal del incidente' })).toContainText('Disciplina y violencia')
 
-    // Estudiante involucrado, aún sin su versión
+    // Estudiante señalado, aún sin su versión
     await page.getByRole('button', { name: 'Agregar persona' }).click()
     const dialog = page.getByRole('dialog')
     await dialog.getByLabel('Rol en el hecho').selectOption('Estudiante involucrado')
@@ -90,7 +90,7 @@ test.describe.serial('Convivencia escolar (D.S. 021-2026-MINEDU)', () => {
 
     await page.getByRole('button', { name: 'Registrar medida' }).click()
     const dialog = page.getByRole('dialog')
-    await dialog.getByLabel('Estudiante involucrado').selectOption({ label: 'Mateo Prueba Uno' })
+    await dialog.getByLabel('Estudiante señalado').selectOption({ label: 'Mateo Prueba Uno' })
     await dialog.getByLabel('Tipo de medida').selectOption('Disciplinaria')
     await dialog.getByLabel('Descripción de la medida').fill('Suspensión de actividades extracurriculares por dos semanas.')
     await dialog.getByRole('button', { name: 'Guardar' }).click()
@@ -124,6 +124,9 @@ test.describe.serial('Convivencia escolar (D.S. 021-2026-MINEDU)', () => {
     await expect(acta).toContainText('Registro formal del incidente')
     await expect(acta).toContainText('Mateo Prueba Uno')
     await expect(acta).toContainText('71****67')
+    // Nombre visible del rol: "Estudiante señalado" (presunción de inocencia)
+    await expect(acta).toContainText('Estudiante señalado')
+    await expect(acta).not.toContainText('Estudiante involucrado')
     await expect(acta).toContainText('SV-2026-009999')
     await expect(acta.getByRole('region', { name: 'Firmas' })).toContainText('Dirección')
     await expect(acta).toContainText('no exime de activar los protocolos')

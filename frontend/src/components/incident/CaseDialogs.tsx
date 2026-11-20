@@ -7,6 +7,7 @@ import { todayInLima } from '../../lib/format'
 import { isValidDni } from '../../lib/validation'
 import {
   measureKinds,
+  participantRoleLabel,
   participantRoles,
   referralEntities,
   signatureStatuses,
@@ -225,7 +226,9 @@ export function ParticipantDialog({ incident, onClose, onSaved, participant }: D
           <Select onChange={(e) => set('role', e.target.value as ParticipantRole)} value={values.role}>
             <option value="">Selecciona el rol</option>
             {participantRoles.map((role) => (
-              <option key={role}>{role}</option>
+              <option key={role} value={role}>
+                {participantRoleLabel(role)}
+              </option>
             ))}
           </Select>
         </Field>
@@ -319,7 +322,7 @@ export function MeasureDialog({ incident, onClose, onSaved }: DialogProps) {
       saving={saving}
       title="Registrar medida"
     >
-      <Field error={errors.participantId} id="measure-participantId" label="Estudiante involucrado" required>
+      <Field error={errors.participantId} id="measure-participantId" label="Estudiante señalado" required>
         <Select
           onChange={(e) => {
             setValues((v) => ({ ...v, participantId: e.target.value }))

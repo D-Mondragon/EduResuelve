@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ActaCase } from '../types/acta'
 import { actaFileName, formatFolio, formatOficio, splitAgreements, familyCandidates, legalBasis, maskDni, nameInitials, needsDirectorSignature, showParticipant, visibleMeasures } from './caseDocs'
 import { emptyFormal, validateFormal } from './formal'
+import { participantRoleLabel } from '../types/case'
 
 const kase: ActaCase = {
   regime: 'Disciplina',
@@ -121,5 +122,11 @@ describe('Folio y oficio propuestos', () => {
     expect(formatOficio(16, 2026, 'IE/D')).toBe('Oficio N.° 016-2026-IE/D')
     expect(formatOficio(1234, 2026, 'IE 1234/D')).toBe('Oficio N.° 1234-2026-IE 1234/D')
     expect(formatFolio(19)).toBe('019')
+  })
+
+  it('CP-UI-48: el rol "Estudiante involucrado" se muestra como "Estudiante señalado"', () => {
+    expect(participantRoleLabel('Estudiante involucrado')).toBe('Estudiante señalado')
+    expect(participantRoleLabel('Estudiante afectado')).toBe('Estudiante afectado')
+    expect(participantRoleLabel('Testigo')).toBe('Testigo')
   })
 })

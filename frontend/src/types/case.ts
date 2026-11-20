@@ -18,6 +18,20 @@ export type Severity = (typeof severities)[number]
 export const participantRoles = ['Estudiante afectado', 'Estudiante involucrado', 'Testigo'] as const
 export type ParticipantRole = (typeof participantRoles)[number]
 
+/**
+ * Nombre visible de cada rol. En la base de datos se conserva el valor interno; en pantalla y en el acta
+ * se dice "Estudiante señalado" (ambos estudiantes están involucrados; se respeta la presunción de inocencia).
+ */
+const participantRoleLabels: Record<ParticipantRole, string> = {
+  'Estudiante afectado': 'Estudiante afectado',
+  'Estudiante involucrado': 'Estudiante señalado',
+  Testigo: 'Testigo',
+}
+
+export function participantRoleLabel(role: ParticipantRole): string {
+  return participantRoleLabels[role]
+}
+
 export const statementStatuses = ['Pendiente', 'Registrada', 'Se abstuvo'] as const
 export type StatementStatus = (typeof statementStatuses)[number]
 

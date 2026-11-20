@@ -39,6 +39,7 @@ import { can } from '../lib/permissions'
 import {
   hasDiscipline,
   hasViolence,
+  participantRoleLabel,
   severities,
   violenceModalities,
   violenceTypes,
@@ -323,7 +324,7 @@ function IncidentCasePage() {
   const measureBlocked = !c.severity
     ? 'Califica la falta antes de registrar medidas.'
     : students.length === 0
-      ? 'Agrega al estudiante involucrado.'
+      ? 'Agrega al estudiante señalado.'
       : c.severity !== 'Leve' && !c.canDecideSevere
         ? 'Las medidas por faltas graves o muy graves las registra Dirección.'
         : ''
@@ -415,7 +416,7 @@ function IncidentCasePage() {
                         <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-ink">
                           {p.fullName}
                           <span className="text-xs font-medium text-muted">
-                            {p.role}
+                            {participantRoleLabel(p.role)}
                             {p.gradeSection && ` · ${p.gradeSection}`}
                             {p.dni && ` · DNI ${maskDni(p.dni)}`}
                           </span>
@@ -432,7 +433,7 @@ function IncidentCasePage() {
                         <RowActions
                           label={p.fullName}
                           onEdit={() => setDialog({ type: 'participant', participant: p })}
-                          onRemove={() => setDialog({ type: 'remove', kind: 'participant', id: p.id, label: `${p.fullName} (${p.role})` })}
+                          onRemove={() => setDialog({ type: 'remove', kind: 'participant', id: p.id, label: `${p.fullName} (${participantRoleLabel(p.role)})` })}
                         />
                       )}
                     </li>
@@ -441,7 +442,7 @@ function IncidentCasePage() {
               )}
               {discipline && pendingStatements > 0 && (
                 <p className="mt-4 text-sm text-amber-800 dark:text-amber-300">
-                  {pendingStatements === 1 ? 'Un estudiante involucrado tiene' : `${pendingStatements} estudiantes involucrados tienen`} la
+                  {pendingStatements === 1 ? 'Un estudiante tiene' : `${pendingStatements} estudiantes tienen`} la
                   versión de los hechos pendiente: se consigna antes de decidir medidas.
                 </p>
               )}
