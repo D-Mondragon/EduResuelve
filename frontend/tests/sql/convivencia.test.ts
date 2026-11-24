@@ -293,4 +293,18 @@ describe('Registro formal y convivencia (D.S. 021-2026-MINEDU)', () => {
 
     await t.expectError(t.rpc('case_suggestions', { p_token: estudiante }), 'PT403')
   })
+
+  it('CP-CON-13: el historial y los mensajes dicen "estudiante señalado"; el valor guardado no cambia', async () => {
+    const { code, participantId } = await disciplineCase()
+    const history = await t.db.query<{ observation: string }>(
+      "select observation from app.follow_ups where incident_code = $1 order by id", [code])
+    expect(history.rows.map((r) => r.observation)).toContain('Agregó a una persona (estudiante señalado).')
+    expect(history.rows.map((r) => r.observation).join(' ')).not.toMatch(/involucrado/i)
+    const stored = await t.db.query<{ role: string }>('select role from app.case_participants where id = $1', [participantId])
+    expect(stored.rows[0].role).toBe('Estudiante involucrado')
+    await t.expectError(
+      t.rpc('case_save', { p_token: orientador, p_code: code, p_kind: 'participant',
+        p_data: { role: 'Agresor', fullName: 'X', gradeSection: '3.º B', statementStatus: 'Pendiente' } }),
+      'P0001', 'estudiante afectado, estudiante señalado o testigo')
+  })
 })

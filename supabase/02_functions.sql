@@ -105,6 +105,13 @@ $$;
 create or replace function app.session_idle_minutes() returns integer
 language sql immutable set search_path = pg_catalog as $$ select 35 $$;
 
+-- Nombre visible del rol de una persona en el caso. El valor guardado sigue siendo
+-- 'Estudiante involucrado', pero se muestra "Estudiante señalado" (presunción de inocencia).
+create or replace function app.participant_role_label(p_role text) returns text
+language sql immutable set search_path = pg_catalog as $$
+  select case p_role when 'Estudiante involucrado' then 'Estudiante señalado' else p_role end
+$$;
+
 -- Valida el token y devuelve el usuario de la sesión (RN-010).
 -- p_touch = false para llamadas automáticas (campana, mediciones): no cuentan como actividad.
 drop function if exists app.session_user(text);
@@ -2367,7 +2374,7 @@ begin
 
   if p_kind = 'participant' then
     if app.text_field(v_data, 'role') not in ('Estudiante afectado', 'Estudiante involucrado', 'Testigo') then
-      perform app.fail('Selecciona el rol de la persona: estudiante afectado, estudiante involucrado o testigo.');
+      perform app.fail('Selecciona el rol de la persona: estudiante afectado, estudiante señalado o testigo.');
     end if;
     if length(app.text_field(v_data, 'fullName')) not between 3 and 120 then
       perform app.fail('Ingresa los nombres y apellidos (de 3 a 120 caracteres).');
@@ -2404,7 +2411,7 @@ begin
               case when app.text_field(v_data, 'statementStatus') <> 'Pendiente' then now() end,
               v_user.id)
       returning id into v_id;
-      v_label := format('Agregó a una persona (%s).', lower(app.text_field(v_data, 'role')));
+      v_label := format('Agregó a una persona (%s).', lower(app.participant_role_label(app.text_field(v_data, 'role'))));
     else
       select * into v_participant from app.case_participants where id = v_id and incident_code = v_inc.code;
       if not found then
@@ -2427,8 +2434,8 @@ begin
       v_label := case
         when v_participant.statement_status <> app.text_field(v_data, 'statementStatus')
              or v_participant.statement <> app.text_field(v_data, 'statement')
-          then format('Consignó la versión de los hechos (%s).', lower(app.text_field(v_data, 'role')))
-        else format('Actualizó los datos de una persona (%s).', lower(app.text_field(v_data, 'role'))) end;
+          then format('Consignó la versión de los hechos (%s).', lower(app.participant_role_label(app.text_field(v_data, 'role'))))
+        else format('Actualizó los datos de una persona (%s).', lower(app.participant_role_label(app.text_field(v_data, 'role')))) end;
     end if;
 
   elsif p_kind = 'measure' then
@@ -2447,7 +2454,7 @@ begin
     select * into v_participant from app.case_participants
     where id = nullif(v_data ->> 'participantId', '')::bigint and incident_code = v_inc.code;
     if not found or v_participant.role <> 'Estudiante involucrado' then
-      perform app.fail('Selecciona al estudiante involucrado al que se aplica la medida.');
+      perform app.fail('Selecciona al estudiante señalado al que se aplica la medida.');
     end if;
     if v_participant.statement_status = 'Pendiente' then
       perform app.fail('Antes de decidir una medida, consigna la versión de los hechos del estudiante o de su familia (8.2).');

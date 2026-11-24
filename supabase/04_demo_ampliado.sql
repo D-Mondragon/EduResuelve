@@ -100,7 +100,7 @@ declare
   involved text[] := array['Estudiantes de 1.° A','Estudiantes de 2.° B','Estudiante de 3.° C y su familia',
                            'Docente del curso y estudiantes','Personal de mantenimiento','Apoderado del estudiante',
                            'Grupo de trabajo de 4.° A','Estudiantes de 5.° B'];
-  -- Estudiantes ficticios (pares: estudiante involucrado, estudiante afectado)
+  -- Estudiantes ficticios (pares: estudiante señalado, estudiante afectado)
   students text[] := array[
     'Diego Ramírez Soto','Mateo Quispe Huamán','Bruno Salazar Peña','Valeria Torres Lima','Joaquín Medina Ríos','Lucía Paredes Chávez',
     'Thiago Flores Aguilar','Camila Rojas Vega','Sebastián Vargas Castro','Ana Sofía Díaz León','Adrián Mendoza Cruz','Fernanda Ruiz Ortega',
@@ -281,7 +281,7 @@ begin
 
     -- Caso de convivencia (D.S. 021-2026-MINEDU; R.M. 383-2025-MINEDU)
     if v_category = 'Convivencia' and v_has_formal and stage >= 1 and v_status <> 'Descartado' then
-      -- Versión del estudiante involucrado: una pendiente, una en la que se abstuvo; el resto registrada
+      -- Versión del estudiante señalado: una pendiente, una en la que se abstuvo; el resto registrada
       v_stmt_status := case when n = 6 then 'Pendiente' when n = 3 then 'Se abstuvo' else 'Registrada' end;
       v_stmt_by := case when v_stmt_status <> 'Registrada' then null when n % 2 = 1 then 'Estudiante' else 'Padre, madre o apoderado' end;
       t := least(t_review + interval '30 minutes', t_cap);
@@ -296,11 +296,11 @@ begin
       values (v_code, 'Estudiante afectado', students[2 * n], grades[1 + n % 6],
               'Refiere que no es la primera vez que ocurre y que se sintió afectado frente a sus compañeros.',
               'Registrada', 'Padre, madre o apoderado', t + interval '90 minutes', v_manager, t + interval '5 minutes');
-      insert into demo_fu values (v_code, 'Convivencia', null, null, 'Agregó a una persona (estudiante involucrado).', null, null, v_manager, t);
+      insert into demo_fu values (v_code, 'Convivencia', null, null, 'Agregó a una persona (estudiante señalado).', null, null, v_manager, t);
       insert into demo_fu values (v_code, 'Convivencia', null, null, 'Agregó a una persona (estudiante afectado).', null, null,
                                   v_manager, t + interval '5 minutes');
       if v_stmt_status <> 'Pendiente' then
-        insert into demo_fu values (v_code, 'Convivencia', null, null, 'Consignó la versión de los hechos (estudiante involucrado).',
+        insert into demo_fu values (v_code, 'Convivencia', null, null, 'Consignó la versión de los hechos (estudiante señalado).',
                                     null, null, v_manager, t + interval '1 hour');
       end if;
       if n % 3 = 0 then
