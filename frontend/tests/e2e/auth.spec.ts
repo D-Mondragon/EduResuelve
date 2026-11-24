@@ -94,4 +94,26 @@ test.describe('Login y sesión', () => {
     await page.getByRole('button', { name: 'Recargar página' }).click()
     await expect(page.getByText('Registro formal del incidente').first()).toBeVisible()
   })
+
+  test('E2E-AUTH-11: tras 28 min sin actividad avisa y a los 30 cierra la sesión (computadoras compartidas)', async ({ page }) => {
+    await page.clock.install()
+    await login(page, USERS.estudiante.dni)
+    await page.clock.fastForward('28:05')
+    const dialog = page.getByRole('dialog', { name: '¿Sigues ahí?' })
+    await expect(dialog).toBeVisible()
+    await expect(dialog).toContainText(/se cerrará en \d+ segundos/)
+
+    // Seguir conectado reinicia la cuenta
+    await dialog.getByRole('button', { name: 'Seguir conectado' }).click()
+    await expect(dialog).toBeHidden()
+    await page.clock.fastForward('20:00')
+    await expect(dialog).toBeHidden()
+
+    // Sin respuesta, la sesión se cierra y el ingreso explica por qué
+    await page.clock.fastForward('10:05')
+    await expect(page).toHaveURL(/\/login$/)
+    await expect(page.getByText('Tu sesión se cerró por inactividad.')).toBeVisible()
+    await page.goto('/dashboard')
+    await expect(page).toHaveURL(/\/login$/)
+  })
 })

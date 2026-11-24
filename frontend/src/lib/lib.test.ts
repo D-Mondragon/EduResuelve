@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { categoryHelp, incidentCategories, type IncidentAction, type IncidentSummary } from '../types/incident'
 import { followUpEvent, formatDuration, institutionName, personLabel, verifyUrl } from './acta'
 import { isChunkLoadError } from './chunkError'
+import { IDLE_LOGOUT_MS, IDLE_WARNING_MS, idlePhase, secondsLeft } from './idle'
 import { toCsv } from './csv'
 import { qrPath } from './qr'
 import { byCategory, byLocation, byMonth, byResponsible, median, monthLabel, paginate, pct, pending, safeReturnPath, summarize, unassignedOpen } from './reports'
@@ -319,5 +320,20 @@ describe('Pantallas que no se pueden descargar', () => {
     expect(isChunkLoadError(new TypeError('error loading dynamically imported module: https://x/assets/a.js'))).toBe(true)
     expect(isChunkLoadError(new TypeError('Importing a module script failed.'))).toBe(true)
     expect(isChunkLoadError(new TypeError("Cannot read properties of undefined (reading 'code')"))).toBe(false)
+  })
+})
+
+describe('Cierre por inactividad (computadoras compartidas)', () => {
+  it('CP-UI-51: avisa a los 28 min, cierra a los 30 y el servidor (35 min) nunca corta antes que el navegador', () => {
+    const start = 1_000_000
+    const min = 60_000
+    expect(idlePhase(start + 27 * min, start)).toBe('active')
+    expect(idlePhase(start + 28 * min, start)).toBe('warning')
+    expect(secondsLeft(start + 28 * min, start)).toBe(120)
+    expect(idlePhase(start + 30 * min, start)).toBe('expired')
+    expect(secondsLeft(start + 31 * min, start)).toBe(0)
+    expect(IDLE_WARNING_MS).toBeLessThan(IDLE_LOGOUT_MS)
+    // Con el aviso al servidor cada 4 min como máximo, su último registro tiene a lo sumo 4 min de atraso: 35 - 4 > 30
+    expect(35 * min - 4 * min).toBeGreaterThan(IDLE_LOGOUT_MS)
   })
 })

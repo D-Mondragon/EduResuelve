@@ -76,4 +76,41 @@ describe('Autenticación por DNI (backend SQL)', () => {
       "select count(*)::int as n from information_schema.role_table_grants where table_schema = 'app' and grantee in ('anon','authenticated','PUBLIC')")
     expect(grants.rows[0].n).toBe(0)
   })
+
+  // Computadoras compartidas (sala de cómputo): la sesión se cierra tras 35 min sin actividad
+  async function idleMinutes(token: string, minutes: number) {
+    await t.db.query(
+      "update app.sessions set last_seen_at = now() - make_interval(mins => $2) where token_hash = app.hash_token($1)", [token, minutes])
+  }
+  async function lastSeen(token: string) {
+    const r = await t.db.query<{ s: number }>(
+      "select extract(epoch from now() - last_seen_at)::int as s from app.sessions where token_hash = app.hash_token($1)", [token])
+    return r.rows[0]?.s
+  }
+
+  it('CP-AUTH-11: una sesión sin actividad por más de 35 minutos se rechaza con un mensaje claro', async () => {
+    const token = await t.login('alicia')
+    await idleMinutes(token, 34)
+    expect((await t.rpc('me', { p_token: token })).dni).toBe(DNI.alicia)
+    await idleMinutes(token, 36)
+    await t.expectError(t.rpc('me', { p_token: token }), 'PT401', 'inactividad')
+    await t.expectError(t.rpc('list_incidents', { p_token: token }), 'PT401', 'inactividad')
+  })
+
+  it('CP-AUTH-12: la campana y las mediciones automáticas no mantienen viva la sesión; una acción del usuario sí', async () => {
+    const token = await t.login('alicia')
+    await idleMinutes(token, 20)
+    await t.rpc('list_notifications', { p_token: token })
+    await t.rpc('log_perf', { p_token: token, p_samples: [] })
+    expect(await lastSeen(token)).toBeGreaterThanOrEqual(20 * 60 - 5)
+    await t.rpc('list_incidents', { p_token: token })
+    expect(await lastSeen(token)).toBeLessThan(5)
+  })
+
+  it('CP-AUTH-13: al iniciar sesión se eliminan las sesiones inactivas', async () => {
+    const old = await t.login('alicia')
+    await idleMinutes(old, 40)
+    await t.login('bruno')
+    expect(await lastSeen(old)).toBeUndefined()
+  })
 })

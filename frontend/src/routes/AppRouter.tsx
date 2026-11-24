@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'rea
 import { useAuth } from '../auth/authContext'
 import { AuthProvider } from '../auth/AuthProvider'
 import { ErrorBoundary } from '../components/ErrorBoundary'
+import { IdleLogout } from '../components/IdleLogout'
 import { LoadingState } from '../components/ui/Feedback'
 import { ToastProvider } from '../components/toast/ToastProvider'
 import MainLayout from '../layouts/MainLayout'
@@ -61,7 +62,13 @@ function RequireAuth() {
   if (user.mustChangePassword && location.pathname !== '/cambiar-contrasena') {
     return <Navigate replace to="/cambiar-contrasena" />
   }
-  return <Outlet />
+  return (
+    <>
+      {/* Computadoras compartidas: cierra la sesión tras 30 min sin actividad */}
+      <IdleLogout />
+      <Outlet />
+    </>
+  )
 }
 
 function RequireRole({ roles, children }: { roles: UserRole[]; children: ReactNode }) {

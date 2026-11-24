@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 import { api, ApiError, flushPerformance, getToken, setToken, UNAUTHORIZED_EVENT } from '../lib/api'
+import { writeLastActivity } from '../lib/idle'
 import type { User } from '../types/user'
 import { AuthContext, type AuthContextValue } from './authContext'
 
@@ -45,6 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const result = await api.login(dni, password)
       if (!result.token || !result.user) return result.error ?? 'No se pudo iniciar sesión.'
       setToken(result.token)
+      writeLastActivity(Date.now()) // la cuenta de inactividad empieza de nuevo
       setSessionMessage('')
       setLoggedOut(false)
       setUser(result.user)
@@ -56,13 +58,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const navigate = useNavigate()
 
-  const logout = useCallback(async () => {
+  const logout = useCallback(async (message?: string) => {
     // Las llamadas toman el token antes de borrarlo; si falla la red, la sesión local se elimina igual.
     void flushPerformance()
     const request = api.logout().catch(() => undefined)
     setToken(null)
     setUser(null)
-    setSessionMessage('')
+    setSessionMessage(message ?? '')
     setLoggedOut(true)
     navigate('/login', { replace: true })
     await request

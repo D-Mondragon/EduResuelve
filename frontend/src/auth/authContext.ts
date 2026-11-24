@@ -10,7 +10,8 @@ export interface AuthContextValue {
   /** true si el usuario cerró sesión voluntariamente (no recordar la página de origen) */
   loggedOut: boolean
   login: (dni: string, password: string) => Promise<string | null>
-  logout: () => Promise<void>
+  /** message: aviso para la pantalla de ingreso (p. ej., cierre por inactividad) */
+  logout: (message?: string) => Promise<void>
   updateUser: (user: User) => void
 }
 

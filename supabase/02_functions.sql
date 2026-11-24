@@ -100,8 +100,15 @@ begin
 end;
 $$;
 
--- Valida el token y devuelve el usuario de la sesión (RN-010)
-create or replace function app.session_user(p_token text) returns app.users
+-- Minutos sin actividad tras los que la sesión se cierra (computadoras compartidas).
+-- El navegador cierra a los 30 min; el servidor da 5 min de margen por si el aviso no llegó.
+create or replace function app.session_idle_minutes() returns integer
+language sql immutable set search_path = pg_catalog as $$ select 35 $$;
+
+-- Valida el token y devuelve el usuario de la sesión (RN-010).
+-- p_touch = false para llamadas automáticas (campana, mediciones): no cuentan como actividad.
+drop function if exists app.session_user(text);
+create or replace function app.session_user(p_token text, p_touch boolean default true) returns app.users
 language plpgsql set search_path = app, extensions, pg_temp as $$
 declare
   v_user app.users;
@@ -117,13 +124,19 @@ begin
     raise exception 'Tu sesión expiró. Inicia sesión nuevamente.' using errcode = 'PT401';
   end if;
 
+  if v_session.last_seen_at < now() - make_interval(mins => app.session_idle_minutes()) then
+    raise exception 'Tu sesión se cerró por inactividad. Inicia sesión nuevamente.' using errcode = 'PT401';
+  end if;
+
   select * into v_user from app.users where id = v_session.user_id;
   if v_user.status <> 'Activo' then
     delete from app.sessions where user_id = v_user.id;
     raise exception 'Tu cuenta está inactiva. Contacta al administrador.' using errcode = 'PT401';
   end if;
 
-  update app.sessions set last_seen_at = now() where token_hash = v_session.token_hash;
+  if p_touch then
+    update app.sessions set last_seen_at = now() where token_hash = v_session.token_hash;
+  end if;
   return v_user;
 end;
 $$;
@@ -343,7 +356,8 @@ begin
   where id = v_user.id
   returning * into v_user;
 
-  delete from app.sessions where expires_at < now();
+  delete from app.sessions
+  where expires_at < now() or last_seen_at < now() - make_interval(mins => app.session_idle_minutes());
 
   perform app.log(v_user, 'Inicio de sesión', 'Autenticación', v_user.code, 'Inicio de sesión exitoso.');
   return jsonb_build_object('token', v_token, 'user', app.user_json(v_user));
@@ -1247,7 +1261,7 @@ $$;
 create or replace function public.list_notifications(p_token text) returns jsonb
 language plpgsql security definer set search_path = app, extensions, pg_temp as $$
 declare
-  v_user app.users := app.session_user(p_token);
+  v_user app.users := app.session_user(p_token, false); -- automática: no cuenta como actividad
 begin
   return jsonb_build_object(
     'unread', (select count(*) from app.notifications where user_id = v_user.id and read_at is null),
@@ -1636,7 +1650,7 @@ $$;
 create or replace function public.log_perf(p_token text, p_samples jsonb) returns integer
 language plpgsql security definer set search_path = app, extensions, pg_temp as $$
 declare
-  v_user app.users := app.session_user(p_token);
+  v_user app.users := app.session_user(p_token, false); -- automática: no cuenta como actividad
   v_count integer;
 begin
   if jsonb_typeof(p_samples) <> 'array' then

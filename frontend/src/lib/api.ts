@@ -143,7 +143,10 @@ export async function rpc<T>(
       response.status,
       error.code ?? String(response.status),
     )
-    if (response.status === 401) {
+    // Solo si la sesión rechazada es la vigente: una respuesta tardía de una sesión ya cerrada
+    // (p. ej., la campana justo al cerrar por inactividad) no debe reemplazar el aviso ni otra sesión.
+    const usedToken = args.p_token
+    if (response.status === 401 && typeof usedToken === 'string' && usedToken !== '' && usedToken === getToken()) {
       setToken(null)
       window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT, { detail: apiError.message }))
     }
