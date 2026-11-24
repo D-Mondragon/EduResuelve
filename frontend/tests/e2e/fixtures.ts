@@ -5,7 +5,23 @@ import { test as base, expect, type Page } from '@playwright/test'
  * lo que mostraba la página (URL, título y mensajes/alertas visibles). Así una falla
  * intermitente en CI se puede analizar sin descargar artefactos.
  */
-export const test = base.extend<{ diagnostics: void }>({
+export const test = base.extend<{ diagnostics: void; csp: void }>({
+  /**
+   * Seguridad (CSP): falla la prueba si el navegador bloqueó algo por la política de contenido.
+   * Con E2E_PROD=1 la app corre con la misma CSP que producción; así un cambio que la rompa
+   * (un script o estilo en línea, una conexión a otro dominio) se detecta antes de publicar.
+   */
+  csp: [
+    async ({ page }, use) => {
+      const violations: string[] = []
+      page.on('console', (message) => {
+        if (message.type() === 'error' && /Content Security Policy/i.test(message.text())) violations.push(message.text())
+      })
+      await use()
+      expect(violations, 'Bloqueos por la política de seguridad de contenido (CSP)').toEqual([])
+    },
+    { auto: true },
+  ],
   diagnostics: [
     async ({ page }, use, testInfo) => {
       await use()

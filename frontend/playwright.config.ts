@@ -2,6 +2,7 @@ import { defineConfig, devices } from '@playwright/test'
 
 const API_PORT = 54330
 const WEB_PORT = 5180
+const PROD = process.env.E2E_PROD === '1'
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -50,14 +51,18 @@ export default defineConfig({
       timeout: 60_000,
     },
     {
-      command: `npx vite --port ${WEB_PORT} --strictPort`,
+      // E2E_PROD=1 (CI): build de producción servido con las mismas cabeceras que Vercel, incluida la CSP.
+      // Sin la variable: servidor de desarrollo (más rápido para trabajar en local).
+      command: PROD
+        ? `npx vite build --outDir dist-e2e --emptyOutDir && npx vite preview --outDir dist-e2e --port ${WEB_PORT} --strictPort`
+        : `npx vite --port ${WEB_PORT} --strictPort`,
       env: {
         VITE_SUPABASE_URL: `http://localhost:${API_PORT}`,
         VITE_SUPABASE_ANON_KEY: 'e2e-key',
       },
       url: `http://localhost:${WEB_PORT}`,
       reuseExistingServer: false,
-      timeout: 60_000,
+      timeout: PROD ? 180_000 : 60_000,
     },
   ],
 })
