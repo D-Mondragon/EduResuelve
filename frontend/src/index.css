@@ -52,6 +52,62 @@ body {
   min-height: 100dvh;
 }
 
+/*
+ * Grupos de botones en el teléfono (< 640 px). Desde 640 px vuelven a ser una fila flexible
+ * y cada pantalla decide su alineación (sm:justify-end, sm:justify-between…).
+ *
+ * action-grid: botones del mismo peso (navegación, exportar, periodos). Dos columnas parejas;
+ *   si quedan en número impar, el último ocupa todo el ancho: nunca queda un botón suelto a medias.
+ * form-actions: "Cancelar" + acción principal. En una sola fila: Cancelar a su medida y la acción
+ *   principal ocupa el resto (no se apilan dos botones a todo el ancho). Con otro número de
+ *   botones se comporta como action-grid.
+ * En ambos, si una etiqueta no cabe, el texto se parte en dos líneas en vez de desbordarse.
+ */
+@utility action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  & > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+  & > * {
+    min-width: 0;
+    white-space: normal;
+    text-align: center;
+  }
+  @media (width >= 40rem) {
+    display: flex;
+    flex-wrap: wrap;
+    & > * {
+      white-space: nowrap;
+    }
+  }
+}
+
+@utility form-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  &:has(> :nth-child(2):last-child) {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  & > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+  & > * {
+    min-width: 0;
+    white-space: normal;
+    text-align: center;
+  }
+  @media (width >= 40rem) {
+    display: flex;
+    flex-wrap: wrap;
+    & > * {
+      white-space: nowrap;
+    }
+  }
+}
+
 /* Texto corrido del acta: justificado como un documento formal; la división silábica (lang="es")
    evita los espacios grandes entre palabras que deja la justificación en columnas angostas. */
 .acta-prose {

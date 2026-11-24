@@ -164,7 +164,7 @@ function SeverityCard({ incident, c, onSaved }: { incident: IncidentDetail; c: I
                 Dirección tomó conocimiento: {c.directorAckBy?.fullName} · {formatDateTime(c.directorAckAt)}
               </p>
             ) : can(incident, 'acknowledge') ? (
-              <Button icon={BadgeCheck} loading={saving} onClick={() => void acknowledge()} size="sm">
+              <Button className="w-full whitespace-normal text-center sm:w-auto" icon={BadgeCheck} loading={saving} onClick={() => void acknowledge()} size="sm">
                 Confirmar que Dirección tomó conocimiento
               </Button>
             ) : (

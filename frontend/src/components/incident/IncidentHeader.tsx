@@ -28,7 +28,9 @@ export function IncidentHeader({ incident, backTo, backLabel, section, actions }
           {backLabel ?? (section ? 'Volver al detalle' : 'Volver a incidencias')}
         </Link>
       </nav>
-      <header className="flex flex-col gap-4 border-b border-line pb-5 md:flex-row md:items-end md:justify-between">
+      {/* Las acciones van en su propia fila bajo el título: junto a un título largo se apretaban y quedaban
+          desparejas (p. ej., "Acta" sola en una segunda fila). */}
+      <header className="flex flex-col gap-4 border-b border-line pb-5">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
             {incident.code}
@@ -54,7 +56,7 @@ export function IncidentHeader({ incident, backTo, backLabel, section, actions }
             )}
           </div>
         </div>
-        {actions && <div className="flex flex-wrap gap-2 print:hidden">{actions}</div>}
+        {actions && <div className="action-grid print:hidden">{actions}</div>}
       </header>
       {incident.pendingReassignment && (
         <Alert title="Pendiente de reasignación" tone="warning">

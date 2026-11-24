@@ -91,7 +91,7 @@ const num = 'tabular-nums'
 
 function DataTable({ caption, head, children, minWidth = '48rem' }: { caption: string; head: string[]; children: ReactNode; minWidth?: string }) {
   return (
-    <div className="overflow-x-auto">
+    <div className="relative overflow-x-auto">
       <table className="w-full border-collapse" style={{ minWidth }}>
         <caption className="sr-only">{caption}</caption>
         <thead className="border-b border-line">
@@ -552,7 +552,7 @@ function ReportsPage() {
           <p className="mb-1.5 text-xs font-medium text-muted" id="preset-label">
             Periodo (fecha de registro)
           </p>
-          <div aria-labelledby="preset-label" className="flex flex-wrap gap-1.5" role="group">
+          <div aria-labelledby="preset-label" className="action-grid" role="group">
             {presets.map(([id, label]) => (
               <button
                 aria-pressed={preset === id}
@@ -624,7 +624,7 @@ function ReportsPage() {
             />
           </section>
 
-          <div aria-label="Tipo de reporte" className="flex gap-1 overflow-x-auto border-b border-line print:hidden" role="tablist">
+          <div aria-label="Tipo de reporte" className="relative flex gap-1 overflow-x-auto border-b border-line print:hidden" role="tablist">
             {tabs.map(({ id, label, icon: Icon }, index) => (
               <button
                 aria-controls={`panel-${id}`}
@@ -672,7 +672,7 @@ function ReportsPage() {
                 />
 
                 {tab === 'incidencias' && (
-                  <div className="grid grid-cols-1 gap-3 border-b border-line p-4 sm:grid-cols-2 sm:px-6 lg:grid-cols-[minmax(12rem,1.4fr)_repeat(4,minmax(8rem,1fr))_auto] print:hidden">
+                  <div className="grid grid-cols-1 gap-3 border-b border-line p-4 sm:grid-cols-2 sm:px-6 lg:grid-cols-3 xl:grid-cols-[minmax(12rem,1.4fr)_repeat(4,minmax(8rem,1fr))_auto] print:hidden">
                     <div className="sm:col-span-2 lg:col-span-1">
                       <label className="mb-1.5 block text-xs font-medium text-muted" htmlFor="report-search">
                         Buscar

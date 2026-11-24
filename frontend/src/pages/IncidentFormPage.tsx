@@ -310,7 +310,7 @@ function IncidentFormPage() {
             )}
           </div>
 
-          <div className="flex flex-col-reverse gap-2 border-t border-line px-5 py-4 sm:flex-row sm:justify-end sm:px-7">
+          <div className="form-actions border-t border-line px-5 py-4 sm:justify-end sm:px-7">
             <ButtonLink icon={X} to={cancelTo} variant="secondary">
               Cancelar
             </ButtonLink>

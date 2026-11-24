@@ -94,7 +94,7 @@ function ChangePasswordPage() {
               <Input autoComplete="new-password" onChange={(e) => setConfirm(e.target.value)} type="password" value={confirm} />
             </Field>
 
-            <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-between">
+            <div className="form-actions pt-2 sm:justify-between">
               {forced ? (
                 <Button icon={LogOut} onClick={() => void logout()} variant="ghost">
                   Cerrar sesión

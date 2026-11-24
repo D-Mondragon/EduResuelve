@@ -197,7 +197,7 @@ function IncidentFollowUpPage() {
                 {incident.status === 'Cerrado' || incident.status === 'Descartado'
                   ? `La incidencia está ${incident.status === 'Cerrado' ? 'cerrada' : 'descartada'}.`
                   : 'Con tu rol no puedes cambiar el estado de esta incidencia en este momento.'}{' '}
-                Puedes consultar el historial completo a la derecha.
+                Puedes consultar el historial completo de la incidencia.
               </Alert>
             ) : (
               <form className="space-y-5" noValidate onSubmit={handleSubmit}>

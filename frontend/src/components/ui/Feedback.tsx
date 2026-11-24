@@ -145,7 +145,7 @@ export function PageHeader({
           {description && <p className="mt-1 text-sm leading-6 text-muted sm:text-base">{description}</p>}
         </div>
       </div>
-      {actions && <div className="flex flex-wrap gap-2 sm:shrink-0 print:hidden">{actions}</div>}
+      {actions && <div className="action-grid sm:shrink-0 print:hidden">{actions}</div>}
     </header>
   )
 }
@@ -197,12 +197,13 @@ export function StatCard({
   hint?: string
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-3 rounded-xl border border-line bg-surface p-4 shadow-sm">
-      <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-lg', tone)}>
+    <div className="flex min-w-0 items-center gap-2.5 rounded-xl border border-line bg-surface p-3 shadow-sm sm:gap-3 sm:p-4">
+      <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-lg sm:size-10', tone)}>
         <Icon aria-hidden="true" className="size-5" />
       </span>
       <div className="min-w-0">
-        <p className="truncate text-xs font-medium text-muted sm:text-sm">{label}</p>
+        {/* La etiqueta se parte en dos líneas en vez de cortarse ("Total de incid…") */}
+        <p className="text-xs font-medium leading-snug text-muted sm:text-sm">{label}</p>
         <p className="text-2xl font-semibold tabular-nums text-ink">{value}</p>
         {hint && <p className="truncate text-xs text-muted">{hint}</p>}
       </div>

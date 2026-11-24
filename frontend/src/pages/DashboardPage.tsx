@@ -117,17 +117,18 @@ function PendingQueue({
 }) {
   return (
     <Link
-      className="group flex items-center gap-3 rounded-xl border border-line bg-surface p-4 shadow-sm transition hover:border-emerald-500/50 hover:shadow focus-visible:outline-2 focus-visible:outline-emerald-600"
+      className="group flex items-center gap-2.5 rounded-xl border border-line bg-surface p-3 shadow-sm transition hover:border-emerald-500/50 hover:shadow focus-visible:outline-2 focus-visible:outline-emerald-600 sm:gap-3 sm:p-4"
       to={to}
     >
-      <span className={`flex size-10 shrink-0 items-center justify-center rounded-lg ${tone}`}>
+      <span className={`flex size-9 shrink-0 items-center justify-center rounded-lg sm:size-10 ${tone}`}>
         <Icon aria-hidden="true" className="size-5" />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-medium text-ink-2">{title}</span>
         <span className="block text-2xl font-semibold tabular-nums text-ink">{incidents.length}</span>
       </span>
-      <ArrowRight aria-hidden="true" className="size-4 text-muted transition group-hover:translate-x-0.5 group-hover:text-emerald-600" />
+      {/* En el teléfono (dos columnas) se omite la flecha para dejar sitio al texto */}
+      <ArrowRight aria-hidden="true" className="hidden size-4 text-muted transition group-hover:translate-x-0.5 group-hover:text-emerald-600 sm:block" />
     </Link>
   )
 }
@@ -172,7 +173,7 @@ function ManagerDashboard({ incidents }: { incidents: IncidentSummary[] }) {
 
       <section aria-label="Pendientes de gestión">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">Requiere tu atención</h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
           <PendingQueue
             icon={Inbox}
             incidents={byStatus('Nuevo')}

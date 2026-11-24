@@ -25,10 +25,12 @@ export function Pagination({
 }) {
   if (info.total === 0) return null
   return (
+    // Teléfono: dos filas ordenadas (rango + filas por página; Anterior · página · Siguiente a lo ancho).
+    // Desde 640 px: una sola fila, con el rango a la izquierda y los controles a la derecha.
     <nav
       aria-label={`Paginación de ${label}`}
       className={cn(
-        'flex flex-col gap-3 border-t border-line px-5 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 print:hidden',
+        'grid grid-cols-[1fr_auto] items-center gap-3 border-t border-line px-5 py-3 sm:flex sm:px-6 print:hidden',
         className,
       )}
     >
@@ -36,22 +38,30 @@ export function Pagination({
         Mostrando <span className="font-medium text-ink">{info.start + 1}–{info.end}</span> de{' '}
         <span className="font-medium text-ink">{info.total}</span>
       </p>
-      <div className="flex flex-wrap items-center gap-2">
-        <label className="flex items-center gap-2 whitespace-nowrap text-sm text-muted" htmlFor={`page-size-${label}`}>
-          Filas por página
-          <select className={cn(controlClass, 'w-auto py-1.5')} id={`page-size-${label}`} onChange={(e) => onSize(Number(e.target.value))} value={size}>
-            {PAGE_SIZES.map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </label>
+      <label className="flex items-center gap-2 whitespace-nowrap text-sm text-muted sm:ml-auto" htmlFor={`page-size-${label}`}>
+        <span className="sm:hidden">Filas</span>
+        <span className="hidden sm:inline">Filas por página</span>
+        <select
+          aria-label="Filas por página"
+          className={cn(controlClass, 'w-auto py-1.5')}
+          id={`page-size-${label}`}
+          onChange={(e) => onSize(Number(e.target.value))}
+          value={size}
+        >
+          {PAGE_SIZES.map((n) => (
+            <option key={n} value={n}>
+              {n}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="col-span-2 flex items-center justify-between gap-2">
         <Button disabled={info.page <= 1} icon={ChevronLeft} onClick={() => onStep(-1, info.totalPages)} size="sm" variant="secondary">
           Anterior
         </Button>
-        <span className="min-w-24 text-center text-sm tabular-nums text-ink-2">
-          Página {info.page} de {info.totalPages}
+        <span className="text-center text-sm tabular-nums text-ink-2 sm:min-w-24">
+          <span className="hidden sm:inline">Página </span>
+          {info.page} de {info.totalPages}
         </span>
         <Button disabled={info.page >= info.totalPages} onClick={() => onStep(1, info.totalPages)} size="sm" variant="secondary">
           Siguiente

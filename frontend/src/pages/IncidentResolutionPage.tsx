@@ -126,7 +126,7 @@ function IncidentResolutionPage() {
                 <Alert tone="error">{formError}</Alert>
               </div>
             )}
-            <div className="flex flex-col-reverse gap-2 border-t border-line px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
+            <div className="form-actions border-t border-line px-5 py-4 sm:justify-end sm:px-6">
               <ButtonLink icon={X} to={base} variant="secondary">
                 Cancelar
               </ButtonLink>

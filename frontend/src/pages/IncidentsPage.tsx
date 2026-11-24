@@ -197,7 +197,7 @@ function IncidentsPage() {
           ) : (
             <>
               {/* Tabla (escritorio) */}
-              <div className="hidden overflow-x-auto rounded-xl border border-line bg-surface shadow-sm lg:block">
+              <div className="relative hidden overflow-x-auto rounded-xl border border-line bg-surface shadow-sm lg:block">
                 <table className="w-full text-left text-sm">
                   <caption className="sr-only">Listado de incidencias</caption>
                   <thead className="bg-surface-2 text-xs font-semibold uppercase tracking-wide text-muted">

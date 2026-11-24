@@ -154,7 +154,7 @@ function AuditPage() {
 
           <section
             aria-label="Filtros"
-            className="grid grid-cols-1 gap-3 rounded-xl border border-line bg-surface p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-[minmax(14rem,1.5fr)_repeat(4,minmax(8rem,1fr))] print:hidden"
+            className="grid grid-cols-1 gap-3 rounded-xl border border-line bg-surface p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[minmax(14rem,1.5fr)_repeat(4,minmax(8rem,1fr))] print:hidden"
           >
             <div className="sm:col-span-2 lg:col-span-1">
               <label className="mb-1.5 block text-xs font-medium text-muted" htmlFor="audit-search">
@@ -223,7 +223,7 @@ function AuditPage() {
             <EmptyState description="Ajusta los filtros para ver otros eventos." icon={SearchX} title="Sin eventos" />
           ) : (
             <>
-              <div className="hidden overflow-hidden rounded-xl border border-line bg-surface shadow-sm lg:block print:block print:border-0 print:shadow-none">
+              <div className="relative hidden overflow-x-auto rounded-xl border border-line bg-surface shadow-sm lg:block print:block print:overflow-visible print:border-0 print:shadow-none">
                 <table className="w-full text-left text-sm print:text-xs">
                   <caption className="sr-only">Eventos de auditoría</caption>
                   <thead className="bg-surface-2 text-xs font-semibold uppercase tracking-wide text-muted">

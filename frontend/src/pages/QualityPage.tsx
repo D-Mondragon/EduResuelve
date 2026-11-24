@@ -126,7 +126,7 @@ function KpiCard({
 
 function Table({ caption, head, children }: { caption: string; head: string[]; children: ReactNode }) {
   return (
-    <div className="overflow-x-auto">
+    <div className="relative overflow-x-auto">
       <table className="w-full min-w-[40rem] border-collapse text-sm">
         <caption className="sr-only">{caption}</caption>
         <thead>

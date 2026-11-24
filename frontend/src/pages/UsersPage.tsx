@@ -315,14 +315,25 @@ function ResetPasswordModal({ user, onClose, onSaved }: { user: ManagedUser; onC
   )
 }
 
+/** En el teléfono, celdas iguales con el ícono sobre la etiqueta: las tres acciones caben en una fila. */
+const userActionClass = 'max-sm:flex-col max-sm:gap-0.5 max-sm:px-1 max-sm:py-1.5 max-sm:text-xs max-sm:whitespace-normal'
+
 function UserActions({ user, isSelf, onAction }: { user: ManagedUser; isSelf: boolean; onAction: (dialog: Dialog) => void }) {
   return (
-    <div className="flex flex-wrap gap-1 lg:min-w-[15rem]">
-      <Button aria-label={`Editar a ${user.fullName}`} icon={PencilLine} onClick={() => onAction({ kind: 'form', user })} size="sm" variant="ghost">
+    <div className="grid auto-cols-fr grid-flow-col gap-1 sm:flex sm:flex-wrap lg:min-w-[15rem]">
+      <Button
+        aria-label={`Editar a ${user.fullName}`}
+        className={userActionClass}
+        icon={PencilLine}
+        onClick={() => onAction({ kind: 'form', user })}
+        size="sm"
+        variant="ghost"
+      >
         Editar
       </Button>
       <Button
         aria-label={`Restablecer clave de ${user.fullName}`}
+        className={userActionClass}
         icon={KeyRound}
         onClick={() => onAction({ kind: 'reset', user })}
         size="sm"
@@ -333,7 +344,7 @@ function UserActions({ user, isSelf, onAction }: { user: ManagedUser; isSelf: bo
       {!isSelf && (
         <Button
           aria-label={`${user.status === 'Activo' ? 'Desactivar' : 'Activar'} a ${user.fullName}`}
-          className={user.status === 'Activo' ? 'text-rose-700 dark:text-rose-400' : undefined}
+          className={cn(userActionClass, user.status === 'Activo' && 'text-rose-700 dark:text-rose-400')}
           icon={user.status === 'Activo' ? PowerOff : Power}
           onClick={() => onAction({ kind: 'status', user })}
           size="sm"
@@ -476,7 +487,7 @@ function UsersPage() {
             <EmptyState description="Prueba con otros filtros." icon={SearchX} title="No se encontraron usuarios" />
           ) : (
             <>
-              <div className="hidden overflow-x-auto rounded-xl border border-line bg-surface shadow-sm lg:block">
+              <div className="relative hidden overflow-x-auto rounded-xl border border-line bg-surface shadow-sm lg:block">
                 <table className="w-full text-left text-sm">
                   <caption className="sr-only">Usuarios registrados</caption>
                   <thead className="bg-surface-2 text-xs font-semibold uppercase tracking-wide text-muted">

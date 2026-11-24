@@ -142,7 +142,7 @@ function IncidentSurveyPage() {
             </Field>
 
             {formError && <Alert tone="error">{formError}</Alert>}
-            <div className="flex flex-col-reverse gap-2 border-t border-line pt-4 sm:flex-row sm:justify-end">
+            <div className="form-actions border-t border-line pt-4 sm:justify-end">
               <ButtonLink icon={X} to={base} variant="secondary">
                 Ahora no
               </ButtonLink>
