@@ -74,8 +74,10 @@ jobs:
       - run: npm ci
       - name: Instalar navegador
         run: npx playwright install --with-deps chromium
-      - name: Ejecutar pruebas E2E (escritorio y móvil)
+      - name: Ejecutar pruebas E2E (escritorio y móvil) sobre el build de producción con su CSP
         run: npm run test:e2e
+        env:
+          E2E_PROD: '1'
       - name: Guardar informe de Playwright
         if: always()
         uses: actions/upload-artifact@v4
