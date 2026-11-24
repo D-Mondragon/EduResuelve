@@ -396,3 +396,25 @@ alter table app.audit_logs enable row level security;
 alter table app.actas enable row level security;
 alter table app.surveys enable row level security;
 alter table app.perf_samples enable row level security;
+
+-- Índices para las claves foráneas (asesor de rendimiento de Supabase): agilizan las búsquedas
+-- por incidencia o por usuario y la verificación de integridad referencial.
+create index if not exists actas_issued_by_fk_idx on app.actas (issued_by);
+create index if not exists audit_logs_user_id_fk_idx on app.audit_logs (user_id);
+create index if not exists case_measures_decided_by_fk_idx on app.case_measures (decided_by);
+create index if not exists case_measures_participant_id_fk_idx on app.case_measures (participant_id);
+create index if not exists case_meetings_created_by_fk_idx on app.case_meetings (created_by);
+create index if not exists case_participants_created_by_fk_idx on app.case_participants (created_by);
+create index if not exists case_referrals_created_by_fk_idx on app.case_referrals (created_by);
+create index if not exists closures_closed_by_fk_idx on app.closures (closed_by);
+create index if not exists closures_incident_code_fk_idx on app.closures (incident_code);
+create index if not exists evidences_uploaded_by_fk_idx on app.evidences (uploaded_by);
+create index if not exists evidences_voided_by_fk_idx on app.evidences (voided_by);
+create index if not exists follow_ups_responsible_id_fk_idx on app.follow_ups (responsible_id);
+create index if not exists follow_ups_user_id_fk_idx on app.follow_ups (user_id);
+create index if not exists incidents_director_ack_by_fk_idx on app.incidents (director_ack_by);
+create index if not exists incidents_formal_registered_by_fk_idx on app.incidents (formal_registered_by);
+create index if not exists notifications_incident_code_fk_idx on app.notifications (incident_code);
+create index if not exists resolutions_incident_code_fk_idx on app.resolutions (incident_code);
+create index if not exists resolutions_registered_by_fk_idx on app.resolutions (registered_by);
+create index if not exists surveys_user_id_fk_idx on app.surveys (user_id);
