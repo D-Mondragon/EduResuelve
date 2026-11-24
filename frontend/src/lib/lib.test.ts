@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { categoryHelp, incidentCategories, type IncidentAction, type IncidentSummary } from '../types/incident'
 import { followUpEvent, formatDuration, institutionName, personLabel, verifyUrl } from './acta'
+import { isChunkLoadError } from './chunkError'
 import { toCsv } from './csv'
 import { qrPath } from './qr'
 import { byCategory, byLocation, byMonth, byResponsible, median, monthLabel, paginate, pct, pending, safeReturnPath, summarize, unassignedOpen } from './reports'
@@ -309,5 +310,14 @@ describe('Ayuda para elegir la categoría', () => {
     expect(categoryHelp.Convivencia).toMatch(/internet/)
     expect(categoryHelp.Orientación).toMatch(/elige Convivencia/)
     expect(categoryHelp.Infraestructura).toMatch(/elige Convivencia/)
+  })
+})
+
+describe('Pantallas que no se pueden descargar', () => {
+  it('CP-UI-50: reconoce la falla de descarga de una pantalla en Chrome, Firefox y Safari, y no otros errores', () => {
+    expect(isChunkLoadError(new TypeError('Failed to fetch dynamically imported module: https://x/assets/ActaPage-a1.js'))).toBe(true)
+    expect(isChunkLoadError(new TypeError('error loading dynamically imported module: https://x/assets/a.js'))).toBe(true)
+    expect(isChunkLoadError(new TypeError('Importing a module script failed.'))).toBe(true)
+    expect(isChunkLoadError(new TypeError("Cannot read properties of undefined (reading 'code')"))).toBe(false)
   })
 })

@@ -77,4 +77,21 @@ test.describe('Login y sesión', () => {
     await page.goto('/esto-no-existe')
     await expect(page.getByText('Página no encontrada')).toBeVisible()
   })
+
+  test('E2E-AUTH-10: si una pantalla no se puede descargar (versión nueva publicada), se avisa en lugar de quedar en blanco', async ({ page }) => {
+    await login(page, USERS.orientador.dni)
+    await page.goto('/incidencias')
+    // Tras un despliegue, el archivo antiguo de la pantalla ya no existe
+    await page.route(/IncidentCasePage/, (route) => route.fulfill({ status: 404, contentType: 'text/plain', body: 'no existe' }))
+    await page.evaluate(() => {
+      history.pushState({}, '', '/incidencias/ER-2026-0003/convivencia')
+      dispatchEvent(new PopStateEvent('popstate'))
+    })
+    // Se recarga sola una vez; si sigue fallando, explica qué hacer y deja el menú disponible
+    await expect(page.getByText('Hay una versión nueva del sistema')).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByRole('navigation').getByRole('link', { name: 'Incidencias' }).first()).toBeVisible()
+    await page.unroute(/IncidentCasePage/)
+    await page.getByRole('button', { name: 'Recargar página' }).click()
+    await expect(page.getByText('Registro formal del incidente').first()).toBeVisible()
+  })
 })

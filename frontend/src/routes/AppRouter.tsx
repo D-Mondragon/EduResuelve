@@ -2,6 +2,7 @@ import { lazy, Suspense, type ReactNode } from 'react'
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router'
 import { useAuth } from '../auth/authContext'
 import { AuthProvider } from '../auth/AuthProvider'
+import { ErrorBoundary } from '../components/ErrorBoundary'
 import { LoadingState } from '../components/ui/Feedback'
 import { ToastProvider } from '../components/toast/ToastProvider'
 import MainLayout from '../layouts/MainLayout'
@@ -29,7 +30,23 @@ const ActaPage = lazy(() => import('../pages/ActaPage'))
 const IncidentCasePage = lazy(() => import('../pages/IncidentCasePage'))
 
 function Deferred({ children }: { children: ReactNode }) {
-  return <Suspense fallback={<LoadingState />}>{children}</Suspense>
+  const { pathname } = useLocation()
+  // Si la pantalla no se puede descargar (p. ej., tras publicar una versión nueva), se avisa en lugar de quedar en blanco
+  return (
+    <ErrorBoundary resetKey={pathname}>
+      <Suspense fallback={<LoadingState />}>{children}</Suspense>
+    </ErrorBoundary>
+  )
+}
+
+/** Cualquier error al dibujar una pantalla muestra un aviso con salida, nunca una página en blanco. */
+function GuardedRoutes() {
+  const { pathname } = useLocation()
+  return (
+    <ErrorBoundary resetKey={pathname}>
+      <AppRoutes />
+    </ErrorBoundary>
+  )
 }
 
 /** Exige sesión iniciada; si la contraseña es temporal, obliga a cambiarla. */
@@ -137,7 +154,7 @@ function AppRouter() {
     <BrowserRouter>
       <ToastProvider>
         <AuthProvider>
-          <AppRoutes />
+          <GuardedRoutes />
         </AuthProvider>
       </ToastProvider>
     </BrowserRouter>
