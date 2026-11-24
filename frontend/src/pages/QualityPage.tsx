@@ -19,6 +19,7 @@ import { Link } from 'react-router'
 import { useCurrentUser } from '../auth/authContext'
 import { Button } from '../components/ui/Button'
 import { Card, CardHeader, ErrorState, LoadingState, PageHeader } from '../components/ui/Feedback'
+import { useToast } from '../components/toast/toastContext'
 import { useAsync } from '../hooks/useAsync'
 import { api } from '../lib/api'
 import { formatDateTime } from '../lib/format'
@@ -408,6 +409,16 @@ function QualityPage() {
   const loadPerf = useCallback(() => api.perfStats(days), [days])
   const quality = useAsync(loadQuality)
   const perf = useAsync(loadPerf)
+  const { notify } = useToast()
+  const refreshing = quality.refreshing || perf.refreshing
+
+  // Recalcula ambos bloques sin ocultar lo que se ve y avisa el resultado
+  const refresh = async () => {
+    const [qualityError, perfError] = await Promise.all([quality.reload(true), perf.reload(true)])
+    const error = qualityError ?? perfError
+    if (error) notify(`No se pudieron actualizar los indicadores: ${error.message}`, 'error')
+    else notify('Indicadores actualizados.')
+  }
 
   const q = quality.data
   const p = perf.data
@@ -421,15 +432,8 @@ function QualityPage() {
       <PageHeader
         actions={
           <>
-            <Button
-              icon={RefreshCw}
-              onClick={() => {
-                quality.reload(true)
-                perf.reload(true)
-              }}
-              variant="secondary"
-            >
-              Actualizar
+            <Button disabled={quality.loading} icon={RefreshCw} loading={refreshing} onClick={() => void refresh()} variant="secondary">
+              {refreshing ? 'Actualizando…' : 'Actualizar'}
             </Button>
             <Button disabled={!q} icon={FileDown} onClick={() => window.print()} title="Abre el diálogo de impresión: elige “Guardar como PDF”" variant="secondary">
               Exportar PDF
